@@ -1798,6 +1798,28 @@
   .prop-contact .pc-name { font-size: 16px; font-weight: 600; }
   .prop-contact .pc-line { font-size: 14px; color: var(--ink-3); margin-top: 3px; }
 
+  /* — Tasteful on-brand polish (single red accent, rounded, no shadows/gradients) — */
+  .prop-label::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 9px; vertical-align: 1px; }
+  .prop-stat { border-radius: 16px; }
+  .prop-quote { border-radius: 0 16px 16px 0; }
+  .prop-addon, .prop-guarantee { border-radius: 14px; }
+  .prop-pricing .tot td { background: var(--accent); color: #fff; }          /* the number that matters, in brand red */
+  .prop-quote.featured { background: var(--accent); border-left: none; border-radius: 16px; padding: 18px 22px; }  /* signature red quote — one per page */
+  .prop-quote.featured .q { color: #fff; font-style: normal; font-size: 15px; line-height: 1.5; }
+  .prop-quote.featured .a { color: rgba(255,255,255,.82); }
+  .prop-panel { background: var(--surface); border-radius: 18px; padding: 20px 22px; }
+  .prop-panel > .prop-stats { margin: 0; }
+  .prop-footer { justify-content: space-between; }
+  .prop-footer .pf-left { color: var(--ink-4); }
+  /* cover */
+  .prop-cover .cover-title { font-size: 54px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.04; margin: 14px 0 16px; }
+  .prop-cover .cover-meta { font-size: 15px; color: var(--ink-2); font-weight: 500; }
+  .prop-cover .cover-meta2 { font-size: 13px; color: var(--ink-4); margin-top: 4px; }
+  .prop-cover .prop-body { display: flex; flex-direction: column; }
+  .prop-shot { background: var(--surface); border-radius: 24px 24px 0 0; padding: 30px 34px 0; overflow: hidden; max-height: 440px; margin-top: auto; }
+  .prop-shot .dashboard-mock { box-shadow: none !important; transform: none !important; border-radius: 18px 18px 0 0; }
+  .prop-page .dashboard-mock { box-shadow: none !important; }
+
   /* ====================================================================
      DASHBOARD (deck manager) — list + create decks, manage salespeople
      ==================================================================== */
@@ -2654,14 +2676,23 @@ function buildProposalPages(deck){
     ['Week 4','Launch','Coaches start checking gear in and out. You’re live.','Your team']
   ];
 
-  // PAGE 1 — cover + overview
-  pages.push(propPage(
-    el('div',{style:'margin-top:36px'},
-      el('div',{class:'prop-eyebrow'}, 'GearLocker Pricing Proposal'),
-      el('div',{class:'prop-title'}, school),
-      el('div',{class:'prop-date'}, 'Prepared ' + dateStr + (d.sp ? ' by ' + d.sp.name : ''))
+  // PAGE 1 — product-led cover
+  pages.push(el('div',{class:'prop-page prop-cover'},
+    el('div',{class:'prop-header'}, el('span',{class:'prop-logo', html: LOGO_IMG_DARK})),
+    el('div',{class:'prop-body'},
+      el('div',{style:'margin-top:46px'},
+        el('div',{class:'prop-eyebrow'}, 'Pricing proposal'),
+        el('div',{class:'cover-title'}, school),
+        el('div',{class:'cover-meta'}, 'Prepared for ' + school + (d.sp ? '  ·  by ' + d.sp.name : '')),
+        el('div',{class:'cover-meta2'}, dateStr)
+      ),
+      el('div',{class:'prop-shot'}, buildDashboardMock())
     ),
-    el('div',{class:'prop-rule'}),
+    el('div',{class:'prop-footer'}, 'gearlocker.com')
+  ));
+
+  // PAGE 2 — overview + the system
+  pages.push(propPage(
     el('div',{class:'prop-section'},
       ...propSec('Overview','What is GearLocker?'),
       el('p',{class:'prop-p'}, 'GearLocker was built by a high school wrestling coach who got tired of chasing lost gear on a spreadsheet. It puts every piece of equipment your programs own — every jersey, helmet, and bat — on one screen, with a checkout system your coaches run from their phones.'),
@@ -2688,7 +2719,7 @@ function buildProposalPages(deck){
     page3.push(el('div',{class:'prop-section'},
       ...propSec('Your numbers','What ' + school + ' has on the line'),
       el('p',{class:'prop-p'}, 'Based on ' + fmtNum(d.enrollment) + ' students and the ' + d.roi.programs + ' program' + (d.roi.programs===1?'':'s') + ' you run, here’s what’s at stake each year:'),
-      el('div',{class:'prop-stats'},
+      el('div',{class:'prop-panel'}, el('div',{class:'prop-stats'},
         el('div',{class:'prop-stat'},
           el('div',{class:'prop-stat-label'},'Gear under management'),
           el('div',{class:'prop-stat-value'}, '~' + fmtMoney(d.roi.totalValue)),
@@ -2704,7 +2735,7 @@ function buildProposalPages(deck){
           el('div',{class:'prop-stat-value'}, '~' + fmtMoney(d.roi.recovered)),
           el('div',{class:'prop-stat-sub'}, 'as loss drops from ' + d.roi.lossPct + '% to ~3% verified')
         )
-      ),
+      )),
       el('div',{class:'prop-note'}, 'Figures use a conservative model — NFHS participation rates and industry replacement values for school-issued gear only. Personal equipment is excluded.')
     ));
   }
@@ -2777,7 +2808,7 @@ function buildProposalPages(deck){
     ),
     el('div',{class:'prop-section'},
       ...propSec('Customer stories','What schools are saying'),
-      ...quotes.map(q => el('div',{class:'prop-quote'}, el('div',{class:'q'}, '“' + q.quote + '”'), el('div',{class:'a'}, '— ' + q.name + ', ' + q.role)))
+      ...quotes.map((q,i) => el('div',{class:'prop-quote' + (i===0?' featured':'')}, el('div',{class:'q'}, '“' + q.quote + '”'), el('div',{class:'a'}, '— ' + q.name + ', ' + q.role)))
     )
   ));
 
@@ -2796,6 +2827,15 @@ function buildProposalPages(deck){
       el('div',{class:'prop-note', style:'margin-top:32px'}, 'This proposal is valid for 30 days from the date of issue.')
     )
   ));
+
+  // running footer with page numbers
+  pages.forEach((pg, i) => {
+    const f = pg.querySelector('.prop-footer');
+    if (!f) return;
+    f.innerHTML = '';
+    f.appendChild(el('span',{class:'pf-left'}, school + '  ·  GearLocker proposal'));
+    f.appendChild(el('span',{}, 'gearlocker.com  ·  ' + String(i+1).padStart(2,'0')));
+  });
 
   return pages;
 }
