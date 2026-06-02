@@ -1789,6 +1789,21 @@
   .btn.danger:hover { background: var(--warn-soft); border-color: var(--warn-border); }
 
   .dash-main { max-width: 1080px; margin: 0 auto; padding: 44px 40px 80px; }
+  .dash-controls { display: flex; gap: 12px; align-items: center; margin: 0 0 22px; }
+  .search-wrap { position: relative; flex: 1; max-width: 440px; }
+  .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-4); pointer-events: none; }
+  #deck-search { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 11px 14px 11px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); }
+  #deck-search:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
+  #deck-search::placeholder { color: var(--ink-4); }
+  #deck-sort { font: inherit; font-size: 14px; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); cursor: pointer; }
+  #deck-sort:focus { outline: none; border-color: var(--ink); }
+  .deck-none { text-align: center; padding: 48px 24px; color: var(--ink-4); font-size: 14.5px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--paper); }
+  .deck-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+  .deck-pager.hidden { display: none; }
+  .pager-btn { font: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); cursor: pointer; }
+  .pager-btn:hover:not(:disabled) { border-color: var(--ink-3); }
+  .pager-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .pager-info { font-size: 13px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
   .dash-h { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; margin: 0 0 6px; }
   .dash-sub { font-size: 15px; color: var(--ink-3); margin: 0 0 32px; }
   .dash-section-h {
@@ -1918,8 +1933,20 @@
     <div class="dash-main">
       <h1 class="dash-h">Sales presentations</h1>
       <p class="dash-sub">Create a branded deck for a school, then present it or download it as a PDF. Every deck you create is saved here.</p>
+      <div class="dash-controls" id="dash-controls">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="deck-search" placeholder="Search by school or rep…" autocomplete="off" />
+        </div>
+        <select id="deck-sort" title="Sort">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="az">School A–Z</option>
+        </select>
+      </div>
       <div class="dash-section-h"><span id="deck-count-label">All decks</span></div>
       <div class="deck-list" id="deck-list"></div>
+      <div class="deck-pager hidden" id="deck-pager"></div>
     </div>
   </div>
 
@@ -2281,13 +2308,43 @@ const initials = (name) => ((name||'').trim().split(/\s+/).map(w=>w[0]||'').slic
 function fmtDate(iso){ try { return new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return ''; } }
 
 /* --- Dashboard (deck list) --- */
+const DECKS_PER_PAGE = 25;
+const deckView = { search: '', sort: 'newest', page: 1 };
+
+function deckRow(deck, team){
+  const sp = team.find(p=>p.id===deck.salespersonId);
+  return el('div',{class:'deck-row'},
+    el('div',{class:'deck-info'},
+      el('div',{class:'deck-school'}, deck.school),
+      el('div',{class:'deck-meta'},
+        el('span',{}, el('b',{},'Created '), fmtDate(deck.createdAt)),
+        el('span',{}, el('b',{},'Enrollment '), deck.enrollment ? fmtNum(deck.enrollment) : '—'),
+        el('span',{}, el('b',{},'Rep '), sp ? sp.name : 'Unassigned')
+      )
+    ),
+    el('div',{class:'deck-row-actions'},
+      el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
+      el('button',{class:'btn sm', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'}), 'Download PDF'),
+      el('button',{class:'btn ghost sm', title:'Delete deck', onClick:()=>deleteDeck(deck.id)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>'}))
+    )
+  );
+}
+
 function renderDashboard(){
-  const decks = getDecks();
+  const all = getDecks();
   const team = getTeam();
   const list = document.getElementById('deck-list');
-  document.getElementById('deck-count-label').textContent = decks.length ? (decks.length + (decks.length===1?' deck':' decks')) : 'All decks';
-  list.innerHTML = '';
-  if (!decks.length){
+  const pager = document.getElementById('deck-pager');
+  const controls = document.getElementById('dash-controls');
+  const countLabel = document.getElementById('deck-count-label');
+  list.innerHTML = ''; pager.innerHTML = ''; pager.className = 'deck-pager hidden';
+
+  if (!all.length){
+    controls.style.display = 'none';
+    countLabel.textContent = 'All decks';
     list.appendChild(el('div',{class:'deck-empty'},
       el('h3',{},'No decks yet'),
       el('p',{},'Create your first presentation for a school to get started.'),
@@ -2295,28 +2352,45 @@ function renderDashboard(){
     ));
     return;
   }
-  decks.forEach(deck => {
-    const sp = team.find(p=>p.id===deck.salespersonId);
-    list.appendChild(el('div',{class:'deck-row'},
-      el('div',{class:'deck-info'},
-        el('div',{class:'deck-school'}, deck.school),
-        el('div',{class:'deck-meta'},
-          el('span',{}, el('b',{},'Created '), fmtDate(deck.createdAt)),
-          el('span',{}, el('b',{},'Enrollment '), deck.enrollment ? fmtNum(deck.enrollment) : '—'),
-          el('span',{}, el('b',{},'Rep '), sp ? sp.name : 'Unassigned')
-        )
-      ),
-      el('div',{class:'deck-row-actions'},
-        el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
-          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
-        el('button',{class:'btn sm', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
-          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'}), 'Download PDF'),
-        el('button',{class:'btn ghost sm', title:'Delete deck', onClick:()=>deleteDeck(deck.id)},
-          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>'}))
-      )
-    ));
+  controls.style.display = '';
+
+  const q = deckView.search.trim().toLowerCase();
+  let rows = all.filter(d => {
+    if (!q) return true;
+    const sp = team.find(p=>p.id===d.salespersonId);
+    return d.school.toLowerCase().includes(q) || (sp && sp.name.toLowerCase().includes(q));
   });
+  rows.sort((a,b) => {
+    if (deckView.sort === 'az') return String(a.school).localeCompare(String(b.school));
+    const cmp = String(a.createdAt||'').localeCompare(String(b.createdAt||''));
+    return deckView.sort === 'oldest' ? cmp : -cmp;
+  });
+
+  countLabel.textContent = q
+    ? (rows.length + ' of ' + all.length + ' deck' + (all.length===1?'':'s'))
+    : (all.length + ' deck' + (all.length===1?'':'s'));
+
+  if (!rows.length){
+    list.appendChild(el('div',{class:'deck-none'}, 'No decks match “' + deckView.search.trim() + '”.'));
+    return;
+  }
+
+  const pages = Math.max(1, Math.ceil(rows.length / DECKS_PER_PAGE));
+  if (deckView.page > pages) deckView.page = pages;
+  if (deckView.page < 1) deckView.page = 1;
+  const start = (deckView.page - 1) * DECKS_PER_PAGE;
+  const pageRows = rows.slice(start, start + DECKS_PER_PAGE);
+  pageRows.forEach(deck => list.appendChild(deckRow(deck, team)));
+
+  if (pages > 1){
+    pager.className = 'deck-pager';
+    pager.appendChild(el('button',{class:'pager-btn', disabled: deckView.page<=1, onClick:()=>{ deckView.page--; renderDashboard(); window.scrollTo(0,0); }}, '‹ Prev'));
+    pager.appendChild(el('span',{class:'pager-info'}, 'Page ' + deckView.page + ' of ' + pages + '  ·  ' + (start+1) + '–' + (start+pageRows.length) + ' of ' + rows.length));
+    pager.appendChild(el('button',{class:'pager-btn', disabled: deckView.page>=pages, onClick:()=>{ deckView.page++; renderDashboard(); window.scrollTo(0,0); }}, 'Next ›'));
+  }
 }
+document.getElementById('deck-search').addEventListener('input', e => { deckView.search = e.target.value; deckView.page = 1; renderDashboard(); });
+document.getElementById('deck-sort').addEventListener('change', e => { deckView.sort = e.target.value; deckView.page = 1; renderDashboard(); });
 
 function deleteDeck(id){
   const decks = getDecks();
