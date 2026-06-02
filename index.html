@@ -2301,14 +2301,16 @@ function renderDashboard(){
       el('div',{class:'deck-info'},
         el('div',{class:'deck-school'}, deck.school),
         el('div',{class:'deck-meta'},
-          el('span',{}, el('b',{},'Rep: '), sp ? sp.name : 'Unassigned'),
-          el('span',{}, 'Created ' + fmtDate(deck.createdAt)),
-          deck.enrollment ? el('span',{}, fmtNum(deck.enrollment)+' students') : null
+          el('span',{}, el('b',{},'Created '), fmtDate(deck.createdAt)),
+          el('span',{}, el('b',{},'Enrollment '), deck.enrollment ? fmtNum(deck.enrollment) : '—'),
+          el('span',{}, el('b',{},'Rep '), sp ? sp.name : 'Unassigned')
         )
       ),
       el('div',{class:'deck-row-actions'},
-        el('button',{class:'btn sm', onClick:()=>openDeck(deck.id)},
-          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'Open'),
+        el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
+          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
+        el('button',{class:'btn sm', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
+          el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'}), 'Download PDF'),
         el('button',{class:'btn ghost sm', title:'Delete deck', onClick:()=>deleteDeck(deck.id)},
           el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>'}))
       )
@@ -2431,6 +2433,30 @@ function openDeck(id){
     renderDeck();
     setTimeout(() => buildOverlay.classList.remove('is-showing'), 200);
   }, 600);
+}
+
+/* --- Download a deck's PDF straight from the list (without opening it) --- */
+async function downloadDeckPdf(deck, btn){
+  const prev = { d: state.d, lossPct: state.lossPct, view: state.view, deckId: state.deckId };
+  const sp = getTeam().find(p => p.id === deck.salespersonId) || null;
+  state.d = {
+    leadName: deck.school,
+    enrollment: deck.enrollment || '',
+    sports: Array.isArray(deck.sports) ? deck.sports.slice() : [],
+    checksTech: deck.checksTech != null ? deck.checksTech : null,
+    sis: deck.sis || '',
+    salesperson: sp
+  };
+  state.lossPct = (deck.lossPct != null ? deck.lossPct : 10);
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = 'Building PDF…';
+  try { await downloadPdf(btn); }
+  catch(e){ console.warn('deck PDF failed', e); }
+  finally {
+    btn.innerHTML = origHTML;
+    btn.disabled = false;
+    state.d = prev.d; state.lossPct = prev.lossPct; state.view = prev.view; state.deckId = prev.deckId;
+  }
 }
 
 /* --- Persist the rep's live discovery answers back to the saved deck --- */
