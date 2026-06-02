@@ -11,6 +11,8 @@
 <!-- Client-side PDF export (one-click download, no print dialog) -->
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Google sign-in (for emailing the deck + proposal from your Gmail) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     /* Brand primaries */
@@ -1910,6 +1912,14 @@
   }
   .deck-empty h3 { font-size: 20px; margin: 0 0 8px; letter-spacing: -0.02em; }
   .deck-empty p { font-size: 14.5px; color: var(--ink-3); margin: 0 0 20px; }
+  .sent-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--success); background: var(--success-soft); border: 1px solid var(--success-border); border-radius: 999px; padding: 2px 9px 2px 7px; margin-left: 10px; vertical-align: 2px; }
+  .btn.sm.is-sent { color: var(--success); border-color: var(--success-border); background: var(--success-soft); }
+  .btn.sm.is-sent:hover { border-color: var(--success); }
+  .email-body { width: 100%; box-sizing: border-box; font: inherit; font-size: 13.5px; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); resize: vertical; min-height: 200px; }
+  .email-body:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
+  .email-attach { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 4px; }
+  .email-attach svg { color: var(--ink-4); flex-shrink: 0; }
+  .email-status { font-size: 12.5px; color: var(--accent-dark); margin-top: 8px; min-height: 16px; }
 
   /* Modal */
   .modal-overlay {
@@ -2323,6 +2333,10 @@ const modalEl = document.getElementById('modal');
    ====================================================================== */
 const SUPABASE_URL      = 'https://cxyzqrjkqsuijualffcv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4eXpxcmprcXN1aWp1YWxmZmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MjYwMzYsImV4cCI6MjA5NjAwMjAzNn0.Iy1Whg6CO0N9MqqA8ywDiB9RaNE6PH8qpA4q0j3kXng';
+
+/* Paste your Google OAuth Client ID here to turn on "Email prospect" (sends the
+   deck + proposal from your Gmail). Leave blank = the email button explains setup. */
+const GOOGLE_CLIENT_ID = '';
 /* ====================================================================== */
 const cloudOn = () => !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 
@@ -2395,20 +2409,25 @@ function deckRow(deck, team){
   const sp = team.find(p=>p.id===deck.salespersonId);
   return el('div',{class:'deck-row'},
     el('div',{class:'deck-info'},
-      el('div',{class:'deck-school'}, deck.school),
+      el('div',{class:'deck-school'}, deck.school,
+        deck.emailedAt ? el('span',{class:'sent-badge', title:'Emailed ' + fmtDate(deck.emailedAt)},
+          el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed') : null),
       el('div',{class:'deck-meta'},
         el('span',{}, el('b',{},'Created '), fmtDate(deck.createdAt)),
         el('span',{}, el('b',{},'Enrollment '), deck.enrollment ? fmtNum(deck.enrollment) : '—'),
-        el('span',{}, el('b',{},'Rep '), sp ? sp.name : 'Unassigned')
+        el('span',{}, el('b',{},'Rep '), sp ? sp.name : 'Unassigned'),
+        (deck.contactFirst || deck.contactLast) ? el('span',{}, el('b',{},'Contact '), [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ')) : null
       )
     ),
     el('div',{class:'deck-row-actions'},
       el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
-      el('button',{class:'btn sm', title:'Download the slide deck as a PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
-        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'}), 'Deck PDF'),
-      el('button',{class:'btn sm', title:'Generate a branded proposal PDF', onClick:(e)=>generateProposal(deck, e.currentTarget)},
-        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>'}), 'Proposal'),
+      el('button',{class:'btn sm' + (deck.emailedAt?' is-sent':''), title: deck.emailedAt ? 'Emailed — click to send again' : 'Email the deck + proposal to the prospect', onClick:()=>openEmailModal(deck)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>'}), deck.emailedAt ? 'Re-email' : 'Email'),
+      el('button',{class:'btn ghost sm', title:'Download the slide deck as a PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'})),
+      el('button',{class:'btn ghost sm', title:'Generate a branded proposal PDF', onClick:(e)=>generateProposal(deck, e.currentTarget)},
+        el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>'})),
       el('button',{class:'btn ghost sm', title:'Edit deck', onClick:()=>openEditModal(deck)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'})),
       el('button',{class:'btn ghost sm', title:'Delete deck', onClick:()=>deleteDeck(deck.id)},
@@ -2493,17 +2512,24 @@ function openCreateModal(){
   closeModal();
   const team = getTeam();
   const schoolInput = el('input',{type:'text', placeholder:'e.g. Westside High School'});
+  const firstInput  = el('input',{type:'text', placeholder:'First name'});
+  const lastInput   = el('input',{type:'text', placeholder:'Last name'});
+  const emailInput  = el('input',{type:'email', placeholder:'contact@school.org'});
   const repSelect = el('select',{}, ...team.map(p=>el('option',{value:p.id}, p.name)));
   const submit = () => {
     const school = schoolInput.value.trim();
     if (school.length < 2){ schoolInput.focus(); return; }
-    createDeck(school, repSelect.value);
+    createDeck({ school: school, salespersonId: repSelect.value,
+      contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim() });
   };
   schoolInput.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
   const body = el('div',{},
     el('div',{class:'modal-h'},'New presentation'),
-    el('div',{class:'modal-desc'},'Pick the school and the salesperson presenting. You’ll run discovery live during the call.'),
+    el('div',{class:'modal-desc'},'Add the school and who you’re presenting to. You’ll run discovery live during the call.'),
     el('div',{class:'field'}, el('label',{},'School / organization'), schoolInput),
+    el('div',{class:'field'}, el('label',{},'Contact name'), el('div',{class:'field-row'}, firstInput, lastInput)),
+    el('div',{class:'field'}, el('label',{},'Contact email'), emailInput),
     el('div',{class:'field'}, el('label',{},'Salesperson'),
       team.length ? repSelect : el('div',{class:'modal-note'},'No salespeople yet — add one in Team first.')),
     el('div',{class:'modal-foot'},
@@ -2517,10 +2543,11 @@ function openCreateModal(){
   setTimeout(()=>schoolInput.focus(),60);
 }
 
-function createDeck(school, salespersonId){
+function createDeck(o){
   const now = new Date().toISOString();
-  const deck = { id: uid('d_'), school, salespersonId, createdAt: now, updatedAt: now,
-    enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
+  const deck = { id: uid('d_'), school: o.school, salespersonId: o.salespersonId,
+    contactFirst: o.contactFirst || '', contactLast: o.contactLast || '', contactEmail: o.contactEmail || '',
+    createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
   closeModal();
   openDeck(deck.id);
@@ -2530,19 +2557,27 @@ function openEditModal(deck){
   closeModal();
   const team = getTeam();
   const schoolInput = el('input',{type:'text', value: deck.school});
+  const firstInput  = el('input',{type:'text', value: deck.contactFirst || ''});
+  const lastInput   = el('input',{type:'text', value: deck.contactLast || ''});
+  const emailInput  = el('input',{type:'email', value: deck.contactEmail || ''});
   const repSelect = el('select',{}, ...team.map(p=>el('option',{value:p.id}, p.name)));
   const save = () => {
     const school = schoolInput.value.trim();
     if (school.length < 2){ schoolInput.focus(); return; }
-    upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value, updatedAt: new Date().toISOString() }));
+    upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value,
+      contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim(),
+      updatedAt: new Date().toISOString() }));
     closeModal();
     renderDashboard();
   };
   schoolInput.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+  emailInput.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
   const body = el('div',{},
     el('div',{class:'modal-h'},'Edit deck'),
-    el('div',{class:'modal-desc'},'Change the school name or reassign the salesperson. Your discovery answers stay put.'),
+    el('div',{class:'modal-desc'},'Update the school, the prospect contact, or the assigned salesperson. Discovery answers stay put.'),
     el('div',{class:'field'}, el('label',{},'School / organization'), schoolInput),
+    el('div',{class:'field'}, el('label',{},'Contact name'), el('div',{class:'field-row'}, firstInput, lastInput)),
+    el('div',{class:'field'}, el('label',{},'Contact email'), emailInput),
     el('div',{class:'field'}, el('label',{},'Salesperson'),
       team.length ? repSelect : el('div',{class:'modal-note'},'No salespeople yet — add one in Team.')),
     el('div',{class:'modal-foot'},
@@ -2871,32 +2906,164 @@ function buildProposalPages(deck){
   return pages;
 }
 
-async function generateProposal(deck, btn){
-  const origHTML = btn.innerHTML;
-  btn.disabled = true; btn.innerHTML = 'Building…';
+/* Render the proposal for a deck to a jsPDF doc and return it (no save). */
+async function composeProposalPdf(deck, setLabel){
+  setLabel = setLabel || (() => {});
+  await ensurePdfLibs();
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-100000px;top:0;width:816px;z-index:-1;background:#fff;';
   document.body.appendChild(host);
   try {
-    await ensurePdfLibs();
-    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
     const pages = buildProposalPages(deck);
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation:'portrait', unit:'px', format:[816,1056], compress:true });
     for (let i=0;i<pages.length;i++){
       host.replaceChildren(pages[i]);
+      setLabel('Rendering proposal ' + (i+1) + ' / ' + pages.length + '…');
       const shot = await window.html2canvas(pages[i], { scale:2, backgroundColor:'#ffffff', width:816, height:1056, windowWidth:816, windowHeight:1056, imageTimeout:15000, logging:false });
       const img = shot.toDataURL('image/jpeg', 0.92);
       if (i>0) pdf.addPage([816,1056],'portrait');
       pdf.addImage(img,'JPEG',0,0,816,1056);
     }
+    return pdf;
+  } finally {
+    host.remove();
+  }
+}
+
+async function generateProposal(deck, btn){
+  const origHTML = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = 'Building…';
+  try {
+    const pdf = await composeProposalPdf(deck, t => { btn.innerHTML = t; });
     pdf.save((deck.school ? deck.school + ' — ' : '') + 'GearLocker Proposal.pdf');
   } catch(e){
     console.error('proposal export failed', e);
     alert('Sorry — the proposal export hit an error:\n\n' + (e && e.message ? e.message : e) + '\n\nPlease try again.');
   } finally {
-    host.remove(); btn.disabled = false; btn.innerHTML = origHTML;
+    btn.disabled = false; btn.innerHTML = origHTML;
   }
+}
+
+/* ---------- Email the deck + proposal from the rep's Gmail ---------- */
+function b64utf8(s){ return btoa(unescape(encodeURIComponent(s))); }
+function mimeHeader(s){ return /[^\x00-\x7F]/.test(s) ? ('=?UTF-8?B?' + b64utf8(s) + '?=') : s; }
+function buildMime(opts){
+  const boundary = 'gl_' + Math.random().toString(36).slice(2);
+  let m = '';
+  m += 'To: ' + opts.to + '\r\n';
+  m += 'Subject: ' + mimeHeader(opts.subject) + '\r\n';
+  m += 'MIME-Version: 1.0\r\n';
+  m += 'Content-Type: multipart/mixed; boundary="' + boundary + '"\r\n\r\n';
+  m += '--' + boundary + '\r\n';
+  m += 'Content-Type: text/html; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n';
+  m += b64utf8(opts.html) + '\r\n';
+  (opts.attachments || []).forEach(a => {
+    m += '--' + boundary + '\r\n';
+    m += 'Content-Type: application/pdf; name="' + a.filename + '"\r\n';
+    m += 'Content-Transfer-Encoding: base64\r\n';
+    m += 'Content-Disposition: attachment; filename="' + a.filename + '"\r\n\r\n';
+    m += a.base64 + '\r\n';
+  });
+  m += '--' + boundary + '--';
+  return m;
+}
+function getGoogleAccessToken(){
+  return new Promise((resolve, reject) => {
+    if (!GOOGLE_CLIENT_ID) return reject(new Error('Google isn’t connected yet. Add your OAuth Client ID (GOOGLE_CLIENT_ID) — see setup steps.'));
+    if (!(window.google && google.accounts && google.accounts.oauth2)) return reject(new Error('Google sign-in didn’t load — check your connection and try again.'));
+    try {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/gmail.send',
+        callback: (resp) => { (resp && resp.access_token) ? resolve(resp.access_token) : reject(new Error('Google didn’t return an access token.')); },
+        error_callback: () => reject(new Error('Google sign-in was cancelled or blocked.'))
+      });
+      client.requestAccessToken();
+    } catch (e) { reject(e); }
+  });
+}
+function defaultEmailBody(deck, sp){
+  const name = (deck.contactFirst || '').trim();
+  const greeting = name ? ('Hi ' + name + ',') : 'Hi,';
+  const sig = sp ? (sp.name + (sp.email ? '\n' + sp.email : '') + (sp.phone ? '\n' + sp.phone : '')) : 'The GearLocker team';
+  return greeting + '\n\n' +
+    'Thanks for the time today. As promised, I’ve attached two things:\n' +
+    '• The walkthrough we went through\n' +
+    '• A proposal built for ' + deck.school + ', with pricing\n\n' +
+    'Short version: GearLocker gets every piece of your gear off the spreadsheet and onto one screen, your coaches check it in and out from their phones, and you stop paying to replace gear you already owned.\n\n' +
+    'Happy to answer anything or line up next steps whenever you’re ready.\n\n' + sig;
+}
+function openEmailModal(deck){
+  closeModal();
+  const sp = getTeam().find(p => p.id === deck.salespersonId) || null;
+  const toInput = el('input',{type:'email', value: deck.contactEmail || '', placeholder:'contact@school.org'});
+  const subjInput = el('input',{type:'text', value: 'GearLocker for ' + deck.school});
+  const bodyArea = el('textarea',{class:'email-body', rows:'13'}, defaultEmailBody(deck, sp));
+  const status = el('div',{class:'email-status'}, '');
+  const sendBtn = el('button',{class:'btn primary'}, 'Send email');
+  const set = t => { status.textContent = t; };
+  sendBtn.addEventListener('click', async () => {
+    const to = toInput.value.trim();
+    if (!/.+@.+\..+/.test(to)){ toInput.focus(); set('Enter a valid recipient email.'); return; }
+    sendBtn.disabled = true;
+    try {
+      set('Connecting to Google…');
+      const token = await getGoogleAccessToken();
+      const prev = { d: state.d, lossPct: state.lossPct };
+      state.d = { leadName: deck.school, enrollment: deck.enrollment || '', sports: (deck.sports||[]).slice(),
+        checksTech: deck.checksTech != null ? deck.checksTech : null, sis: deck.sis || '', salesperson: sp };
+      state.lossPct = deck.lossPct != null ? deck.lossPct : 10;
+      let deckPdf, propPdf;
+      try {
+        set('Building the deck PDF…');
+        deckPdf = await composeSlidesPdf(set);
+      } finally { state.d = prev.d; state.lossPct = prev.lossPct; }
+      set('Building the proposal PDF…');
+      propPdf = await composeProposalPdf(deck, set);
+      const deckB64 = deckPdf.output('datauristring').split('base64,')[1];
+      const propB64 = propPdf.output('datauristring').split('base64,')[1];
+      set('Sending…');
+      const safe = bodyArea.value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1E1715;line-height:1.55">' + safe.replace(/\n/g,'<br>') + '</div>';
+      const slug = deck.school.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
+      const mime = buildMime({ to: to, subject: subjInput.value.trim() || ('GearLocker for ' + deck.school), html: html,
+        attachments: [
+          { filename: slug + '-presentation.pdf', base64: deckB64 },
+          { filename: slug + '-proposal.pdf', base64: propB64 }
+        ]});
+      const raw = btoa(mime).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+      const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method:'POST', headers:{ Authorization:'Bearer ' + token, 'Content-Type':'application/json' }, body: JSON.stringify({ raw: raw })
+      });
+      if (!r.ok) throw new Error('Gmail ' + r.status + ': ' + (await r.text()));
+      const cur = DB.decks.find(d => d.id === deck.id) || deck;
+      upsertDeck(Object.assign({}, cur, { emailedAt: new Date().toISOString(), contactEmail: to, updatedAt: new Date().toISOString() }));
+      closeModal();
+      renderDashboard();
+    } catch (e) {
+      console.error('email failed', e);
+      sendBtn.disabled = false;
+      set('Couldn’t send: ' + (e && e.message ? e.message : e));
+    }
+  });
+  const body = el('div',{},
+    el('div',{class:'modal-h'},'Email the prospect'),
+    el('div',{class:'modal-desc'},'Review and send it from your Gmail. The presentation and proposal attach automatically.'),
+    el('div',{class:'field'}, el('label',{},'To'), toInput),
+    el('div',{class:'field'}, el('label',{},'Subject'), subjInput),
+    el('div',{class:'field'}, el('label',{},'Message'), bodyArea),
+    el('div',{class:'email-attach'},
+      el('span',{html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'}),
+      'Attaching the presentation PDF and proposal PDF'),
+    status,
+    el('div',{class:'modal-foot'},
+      el('button',{class:'btn', onClick:closeModal},'Cancel'),
+      sendBtn
+    )
+  );
+  openModal(body);
 }
 
 /* --- Persist the rep's live discovery answers back to the saved deck --- */
@@ -3080,57 +3247,38 @@ async function inlineRemoteImages(root, cache) {
   });
 }
 
-async function downloadPdf(btn) {
-  const label = btn ? btn.querySelector('.pdf-btn-label') : null;
-  const original = label ? label.textContent : '';
-  const setLabel = t => { if (label) label.textContent = t; };
-  if (btn) btn.disabled = true;
-  setLabel('Preparing…');
-
-  // Off-screen host where each slide is rendered at natural 1280×720 (scale 1)
+/* Render the current state's slides to a jsPDF doc and return it (no save). */
+async function composeSlidesPdf(setLabel) {
+  setLabel = setLabel || (() => {});
+  await ensurePdfLibs();
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-100000px;top:0;width:1280px;height:720px;overflow:hidden;z-index:-1;';
   document.body.appendChild(host);
-
-  // Kill transitions/animations during capture so inlined (data-URI) backgrounds
-  // apply instantly — otherwise html2canvas captures mid-transition and re-reads
-  // the original cross-origin image, tainting the canvas.
   const noTrans = document.createElement('style');
   noTrans.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
   document.head.appendChild(noTrans);
-
   try {
-    await ensurePdfLibs();
-    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-
     const imgCache = new Map();
     const slides = buildSlides();
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720], compress: true });
-
     for (let i = 0; i < slides.length; i++) {
       const node = slides[i];
       node.classList.add('slide');
-      // wrap content in a fixed-size canvas, just like renderDeck()
       const inner = node.querySelector('.slide-inner');
       const canvas = document.createElement('div');
       canvas.className = 'slide-canvas';
       node.insertBefore(canvas, inner);
       canvas.appendChild(inner);
-      // force visible + natural size for capture (no transition transform / scale)
       node.style.cssText = 'position:relative;opacity:1;transform:none;pointer-events:auto;display:flex;align-items:center;justify-content:center;width:1280px;height:720px;';
       canvas.style.transform = 'none';
       node.querySelectorAll('.pdf-btn, .pdf-hint').forEach(e => { e.style.display = 'none'; });
-
       host.replaceChildren(node);
-
       setLabel('Rendering ' + (i + 1) + ' / ' + slides.length + '…');
       await inlineRemoteImages(node, imgCache);
-
       const bg = node.classList.contains('dark') ? '#1E1715'
-               : node.classList.contains('surface') ? '#F8F8F8'
-               : '#ffffff';
-
+               : node.classList.contains('surface') ? '#F8F8F8' : '#ffffff';
       const shot = await window.html2canvas(canvas, {
         scale: 2, useCORS: true, allowTaint: false, backgroundColor: bg, imageTimeout: 15000,
         width: 1280, height: 720, windowWidth: 1280, windowHeight: 720, logging: false
@@ -3139,16 +3287,27 @@ async function downloadPdf(btn) {
       if (i > 0) pdf.addPage([1280, 720], 'landscape');
       pdf.addImage(img, 'JPEG', 0, 0, 1280, 720);
     }
+    return pdf;
+  } finally {
+    host.remove();
+    noTrans.remove();
+  }
+}
 
+async function downloadPdf(btn) {
+  const label = btn ? btn.querySelector('.pdf-btn-label') : null;
+  const original = label ? label.textContent : '';
+  const setLabel = t => { if (label) label.textContent = t; };
+  if (btn) btn.disabled = true;
+  setLabel('Preparing…');
+  try {
+    const pdf = await composeSlidesPdf(setLabel);
     setLabel('Saving…');
-    const name = (state.d.leadName ? state.d.leadName + ' — ' : '') + 'GearLocker Presentation.pdf';
-    pdf.save(name);
+    pdf.save((state.d.leadName ? state.d.leadName + ' — ' : '') + 'GearLocker Presentation.pdf');
   } catch (err) {
     console.error('PDF export failed', err);
     alert('Sorry — the PDF export hit an error:\n\n' + (err && err.message ? err.message : err) + '\n\nPlease try again.');
   } finally {
-    host.remove();
-    noTrans.remove();
     if (btn) btn.disabled = false;
     setLabel(original || 'Download as PDF');
   }
