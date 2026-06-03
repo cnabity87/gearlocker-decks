@@ -1952,7 +1952,7 @@
   .lb-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
   .lb-sub { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; line-height: 1.5; max-width: 720px; }
   .lb-table { display: flex; flex-direction: column; gap: 6px; }
-  .lb-row { display: grid; grid-template-columns: minmax(0,1.6fr) 70px 1.3fr 1.4fr 1fr 1.2fr; align-items: center; gap: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .lb-row { display: grid; grid-template-columns: minmax(0,1.5fr) 64px 1.2fr 1.3fr 1.2fr 0.95fr 1.1fr; align-items: center; gap: 12px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
   .lb-head { background: none; border: none; padding: 0 18px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
   .lb-rep { font-size: 15px; font-weight: 700; color: var(--ink); }
   .lb-rep.muted { color: var(--ink-4); font-weight: 600; }
@@ -1979,6 +1979,10 @@
   .fu-chip.fu-set { background: #e7f6ee; color: #1f7a47; }
   .fu-chip.fu-past, .fu-chip.fu-none { background: var(--surface); color: var(--ink-4); font-weight: 600; }
   .fu-chip.fu-nudge { background: #fdecea; color: #c62b25; }
+  .stage-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .01em; }
+  .stage-chip.stage-won { background: #e7f6ee; color: #1f7a47; }
+  .stage-chip.stage-lost { background: var(--surface); color: var(--ink-4); }
+  .stage-chip.stage-hold { background: #fdf3e3; color: #b6781a; }
   .fu-chip svg { flex-shrink: 0; }
   /* rubric editor (Settings) */
   .rub-help { font-size: 13.5px; color: var(--ink-3); margin: 0 0 14px; line-height: 1.5; }
@@ -2742,7 +2746,21 @@ function lastTouchDate(deck){
 function daysQuiet(deck){ const last = lastTouchDate(deck); return last ? dayDiff(new Date().toISOString(), last) : null; }
 function nudgeThreshold(){ return Number(AUTOMATION.nudgeDays) || 10; }
 function hasUpcomingFollowup(deck){ return !!(deck.followup && deck.followup.scheduled && deck.followup.startTime && new Date(deck.followup.startTime).getTime() > Date.now()); }
-function dealNeedsNudge(deck){ if (hasUpcomingFollowup(deck)) return false; const q = daysQuiet(deck); return q != null && q >= nudgeThreshold(); }
+const STAGES = [
+  { key:'active', label:'Active' },
+  { key:'won',    label:'Won' },
+  { key:'lost',   label:'Lost' },
+  { key:'hold',   label:'On hold' }
+];
+function dealStage(deck){ return (deck && deck.stage) || 'active'; }
+function isOpenDeal(deck){ return dealStage(deck) === 'active'; }
+function stageChip(deck){
+  const s = dealStage(deck);
+  if (s === 'active') return null;   // active is the default — no chip needed
+  const meta = STAGES.find(x=>x.key===s) || STAGES[0];
+  return el('span',{class:'stage-chip stage-' + s}, meta.label);
+}
+function dealNeedsNudge(deck){ if (!isOpenDeal(deck)) return false; if (hasUpcomingFollowup(deck)) return false; const q = daysQuiet(deck); return q != null && q >= nudgeThreshold(); }
 function followupChip(deck){
   const fu = deck.followup;
   if (hasUpcomingFollowup(deck)){
@@ -2783,9 +2801,10 @@ function deckRow(deck, team){
         ? el('span',{class:'sent-badge', title:'Emailed ' + fmtDate(deck.emailedAt)},
             el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed')
         : null,
+      stageChip(deck),
       deck.callGrade ? el('span',{class:'grade-chip', style:'background:' + gradeColor(deck.callGrade.overall), title:'Call grade ' + deck.callGrade.overall + '/100'}, deck.callGrade.grade) : null,
       followupChip(deck),
-      (!deck.emailedAt && !deck.callGrade && !deck.followup) ? el('span',{class:'muted'},'—') : null),
+      (!deck.emailedAt && !deck.callGrade && !deck.followup && isOpenDeal(deck)) ? el('span',{class:'muted'},'—') : null),
     el('div',{class:'deck-cell num'}, fmtDate(deck.createdAt)),
     el('div',{class:'deck-cell num'}, deck.enrollment ? fmtNum(deck.enrollment) : el('span',{class:'muted'},'—')),
     el('div',{class:'deck-cell'}, sp ? sp.name : el('span',{class:'muted'},'Unassigned')),
@@ -2946,7 +2965,7 @@ function createDeck(o){
   const now = new Date().toISOString();
   const deck = { id: uid('d_'), school: o.school, salespersonId: o.salespersonId,
     contactFirst: o.contactFirst || '', contactLast: o.contactLast || '', contactEmail: o.contactEmail || '',
-    createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
+    stage: 'active', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
   closeModal();
   openDeck(deck.id);
@@ -2960,10 +2979,11 @@ function openEditModal(deck){
   const lastInput   = el('input',{type:'text', value: deck.contactLast || ''});
   const emailInput  = el('input',{type:'email', value: deck.contactEmail || ''});
   const repSelect = el('select',{}, ...team.map(p=>el('option',{value:p.id}, p.name)));
+  const stageSelect = el('select',{}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
   const save = () => {
     const school = schoolInput.value.trim();
     if (school.length < 2){ schoolInput.focus(); return; }
-    upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value,
+    upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value, stage: stageSelect.value,
       contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim(),
       updatedAt: new Date().toISOString() }));
     closeModal();
@@ -2977,8 +2997,10 @@ function openEditModal(deck){
     el('div',{class:'field'}, el('label',{},'School / organization'), schoolInput),
     el('div',{class:'field'}, el('label',{},'Contact name'), el('div',{class:'field-row'}, firstInput, lastInput)),
     el('div',{class:'field'}, el('label',{},'Contact email'), emailInput),
-    el('div',{class:'field'}, el('label',{},'Salesperson'),
-      team.length ? repSelect : el('div',{class:'modal-note'},'No salespeople yet — add one in Team.')),
+    el('div',{class:'field-row'},
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Salesperson'),
+        team.length ? repSelect : el('div',{class:'modal-note'},'No salespeople yet — add one in Team.')),
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Stage'), stageSelect)),
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
       team.length ? el('button',{class:'btn primary', onClick:save}, 'Save changes') : null
@@ -2986,6 +3008,7 @@ function openEditModal(deck){
   );
   openModal(body);
   if (team.length) repSelect.value = deck.salespersonId;   // preselect current rep
+  stageSelect.value = dealStage(deck);
   setTimeout(()=>schoolInput.focus(),50);
 }
 
@@ -3235,10 +3258,13 @@ function letterGrade(n){ if(n==null)return'—'; if(n>=93)return'A';if(n>=90)ret
 function repStats(decks){
   const graded = decks.filter(d => d.callGrade && typeof d.callGrade.overall === 'number');
   const avg = graded.length ? Math.round(graded.reduce((a,d)=>a+d.callGrade.overall,0)/graded.length) : null;
+  const won = decks.filter(d=>dealStage(d)==='won').length;
+  const lost = decks.filter(d=>dealStage(d)==='lost').length;
   return { count: decks.length, graded: graded.length, avg,
     booked: decks.filter(hasUpcomingFollowup).length,
     nudge: decks.filter(dealNeedsNudge).length,
-    emailed: decks.filter(d=>d.emailedAt).length };
+    emailed: decks.filter(d=>d.emailedAt).length,
+    won, lost, winRate: (won+lost) ? Math.round(100*won/(won+lost)) : null };
 }
 function renderLeaderboard(){
   const body = document.getElementById('leaderboard-body');
@@ -3251,7 +3277,7 @@ function renderLeaderboard(){
   if (unassigned.length) groups.push({ name:'Unassigned', decks: unassigned, muted:true });
   groups.sort((a,b)=> b.decks.length - a.decks.length);
   const table = el('div',{class:'lb-table'},
-    el('div',{class:'lb-row lb-head'}, el('div',{},'Rep'), el('div',{},'Deals'), el('div',{},'Avg call grade'), el('div',{},'Follow-ups booked'), el('div',{},'Needs nudge'), el('div',{},'Emailed'))
+    el('div',{class:'lb-row lb-head'}, el('div',{},'Rep'), el('div',{},'Deals'), el('div',{},'Avg call grade'), el('div',{},'Win rate'), el('div',{},'Follow-ups'), el('div',{},'Needs nudge'), el('div',{},'Emailed'))
   );
   if (!groups.length || !decks.length){
     table.appendChild(el('div',{class:'lb-row'}, el('div',{class:'muted', style:'grid-column:1/-1'},'No decks yet.')));
@@ -3262,6 +3288,7 @@ function renderLeaderboard(){
       el('div',{class:'lb-rep' + (g.muted?' muted':'')}, g.name),
       el('div',{class:'lb-num'}, String(s.count)),
       el('div',{class:'lb-num'}, s.avg!=null ? el('span',{class:'lb-grade', style:'color:'+gradeColor(s.avg)}, letterGrade(s.avg)+' · '+s.avg) : el('span',{class:'muted'},'—'), s.graded ? el('span',{class:'lb-sub2'}, ' ('+s.graded+')') : null),
+      el('div',{class:'lb-num'}, s.winRate!=null ? el('span',{}, s.winRate + '% ', el('span',{class:'lb-sub2'}, s.won+'W/'+s.lost+'L')) : el('span',{class:'muted'},'—')),
       el('div',{class:'lb-num'}, s.count ? (s.booked + ' · ' + Math.round(100*s.booked/s.count) + '%') : '—'),
       el('div',{class:'lb-num' + (s.nudge?' lb-warn':'')}, String(s.nudge)),
       el('div',{class:'lb-num'}, s.count ? (s.emailed + ' · ' + Math.round(100*s.emailed/s.count) + '%') : '—')
