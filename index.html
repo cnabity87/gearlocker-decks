@@ -1950,6 +1950,10 @@
   .deck-status { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
   .grade-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11.5px; font-weight: 800; color: #fff; letter-spacing: -0.01em; }
   .deck-row-actions .btn.is-graded { color: var(--accent); }
+  .fu-chip { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .fu-chip.fu-set { background: #e7f6ee; color: #1f7a47; }
+  .fu-chip.fu-past, .fu-chip.fu-none { background: var(--surface); color: var(--ink-4); font-weight: 600; }
+  .fu-chip svg { flex-shrink: 0; }
   /* rubric editor (Settings) */
   .rub-help { font-size: 13.5px; color: var(--ink-3); margin: 0 0 14px; line-height: 1.5; }
   .rub-total { font-weight: 600; }
@@ -2172,6 +2176,10 @@
       </div>
       <div class="dash-actions">
         <button class="user-chip" id="user-chip" type="button" style="display:none"></button>
+        <button class="btn ghost" id="followups-btn" type="button" title="Check booked follow-ups on the rep's calendar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          <span class="fu-btn-label">Follow-ups</span>
+        </button>
         <button class="btn ghost" id="settings-btn" type="button" title="Edit pricing">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Settings
@@ -2665,6 +2673,22 @@ function fmtDate(iso){ try { return new Date(iso).toLocaleDateString(undefined,{
 /* --- Dashboard (deck list) --- */
 const DECKS_PER_PAGE = 25;
 const deckView = { search: '', sort: 'newest', page: 1 };
+let lastPageDecks = [];
+function currentPageDecks(){ return lastPageDecks; }
+const CAL_MINI = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+function followupChip(deck){
+  const fu = deck.followup;
+  if (!fu) return null;
+  if (fu.scheduled && fu.startTime){
+    const days = Math.ceil((new Date(fu.startTime).getTime() - Date.now()) / 86400000);
+    const when = days < 0 ? 'past' : days === 0 ? 'today' : days === 1 ? '1 day' : (days + ' days');
+    const short = new Date(fu.startTime).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    return el('span',{class:'fu-chip ' + (days < 0 ? 'fu-past' : 'fu-set'), title:'Follow-up ' + fmtDate(fu.startTime) + (fu.title ? (' — ' + fu.title) : '')},
+      el('span',{html: CAL_MINI}), short + ' · ' + when);
+  }
+  if (fu.noAccess) return el('span',{class:'fu-chip fu-none', title:'Couldn’t read this rep’s calendar — check Google Calendar sharing'}, 'Follow-up: ?');
+  return el('span',{class:'fu-chip fu-none', title:'No upcoming follow-up on the rep’s calendar'}, 'No follow-up');
+}
 
 function deckRow(deck, team){
   const sp = team.find(p=>p.id===deck.salespersonId);
@@ -2681,7 +2705,8 @@ function deckRow(deck, team){
             el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed')
         : null,
       deck.callGrade ? el('span',{class:'grade-chip', style:'background:' + gradeColor(deck.callGrade.overall), title:'Call grade ' + deck.callGrade.overall + '/100'}, deck.callGrade.grade) : null,
-      (!deck.emailedAt && !deck.callGrade) ? el('span',{class:'muted'},'—') : null),
+      followupChip(deck),
+      (!deck.emailedAt && !deck.callGrade && !deck.followup) ? el('span',{class:'muted'},'—') : null),
     el('div',{class:'deck-cell num'}, fmtDate(deck.createdAt)),
     el('div',{class:'deck-cell num'}, deck.enrollment ? fmtNum(deck.enrollment) : el('span',{class:'muted'},'—')),
     el('div',{class:'deck-cell'}, sp ? sp.name : el('span',{class:'muted'},'Unassigned')),
@@ -2753,6 +2778,7 @@ function renderDashboard(){
   if (deckView.page < 1) deckView.page = 1;
   const start = (deckView.page - 1) * DECKS_PER_PAGE;
   const pageRows = rows.slice(start, start + DECKS_PER_PAGE);
+  lastPageDecks = pageRows;
   list.appendChild(el('div',{class:'deck-cols deck-thead'},
     el('div',{}, 'School'),
     el('div',{}, 'Contact'),
@@ -3129,6 +3155,7 @@ document.getElementById('analysis-back').addEventListener('click', backFromAnaly
 document.getElementById('new-deck-btn').addEventListener('click', openCreateModal);
 document.getElementById('team-btn').addEventListener('click', openTeamModal);
 document.getElementById('settings-btn').addEventListener('click', openSettingsPage);
+document.getElementById('followups-btn').addEventListener('click', (e) => checkAllFollowups(e.currentTarget));
 document.getElementById('settings-back').addEventListener('click', backFromSettings);
 
 /* --- Open a deck (dashboard → presentation) --- */
@@ -3483,7 +3510,7 @@ function buildMime(opts){
 }
 /* ---------- Auth: Google sign-in gate (also primes Gmail send) ---------- */
 const ALLOWED_DOMAIN = 'gearlocker.com';
-const GIS_SCOPE = 'openid email profile https://www.googleapis.com/auth/gmail.send';
+const GIS_SCOPE = 'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events.readonly';
 let AUTH = null;            // { email, name, picture, token, expires }
 let glTokenClient = null;
 let glTokenResolve = null, glTokenReject = null;
@@ -3551,6 +3578,76 @@ async function getGoogleAccessToken(){
   AUTH = Object.assign({}, AUTH || {}, { token: resp.access_token, expires: Date.now() + ((resp.expires_in || 3300) * 1000) - 60000 });
   saveAuth();
   return AUTH.token;
+}
+/* ---------- Follow-up detection via Google Calendar ----------
+   The HubSpot scheduler writes the booked follow-up to the rep's Google Calendar
+   (prospect as a guest). We read the rep's calendar for an upcoming event whose
+   guest is the deck's contact, and store {scheduled, startTime} on the deck. */
+async function fetchUpcomingMeeting(token, calendarId, contactEmail){
+  const nowISO = new Date().toISOString();
+  const maxISO = new Date(Date.now() + 1000*60*60*24*120).toISOString();
+  const u = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) +
+    '/events?singleEvents=true&orderBy=startTime&maxResults=10&timeMin=' + encodeURIComponent(nowISO) +
+    '&timeMax=' + encodeURIComponent(maxISO) + '&q=' + encodeURIComponent(contactEmail);
+  const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token } });
+  if (r.status === 401 || r.status === 403){ const t = await r.text(); throw { scope: /insufficient|scope|invalid.?token|ACCESS_TOKEN_SCOPE/i.test(t), noAccess: true }; }
+  if (!r.ok) throw { noAccess: true };
+  const data = await r.json();
+  const wanted = contactEmail.toLowerCase().trim();
+  const items = (data.items || []).filter(e => e.status !== 'cancelled' && e.start && (e.start.dateTime || e.start.date));
+  const match = items.find(e =>
+    (e.attendees || []).some(a => String(a.email||'').toLowerCase().trim() === wanted) ||
+    String((e.summary||'') + ' ' + (e.description||'') + ' ' + (e.creator&&e.creator.email||'')).toLowerCase().includes(wanted)
+  );
+  if (!match) return { scheduled: false };
+  return { scheduled: true, startTime: match.start.dateTime || match.start.date, title: match.summary || '', htmlLink: match.htmlLink || '' };
+}
+async function checkOneFollowup(deck, token){
+  const sp = getTeam().find(p => p.id === deck.salespersonId);
+  const repEmail = (sp && sp.email) ? sp.email : (AUTH && AUTH.email) || '';
+  const contact = (deck.contactEmail || '').trim();
+  if (!contact || !repEmail) return { skipped: true };
+  try {
+    const res = await fetchUpcomingMeeting(token, repEmail, contact);
+    return Object.assign({ checkedAt: new Date().toISOString() }, res);
+  } catch (e) {
+    if (e && e.scope) throw e;
+    return { checkedAt: new Date().toISOString(), scheduled: false, noAccess: true };
+  }
+}
+async function checkAllFollowups(btn){
+  const label = btn ? btn.querySelector('.fu-btn-label') : null;
+  const setL = t => { if (label) label.textContent = t; };
+  if (!GOOGLE_CLIENT_ID){ alert('Google isn’t connected, so we can’t read calendars.'); return; }
+  if (btn) btn.disabled = true; setL('Checking…');
+  try {
+    let token;
+    try { token = await getGoogleAccessToken(); } catch(e){ setL('Follow-ups'); return; }
+    const team = getTeam();
+    const targets = currentPageDecks().filter(d => d.contactEmail && team.find(p=>p.id===d.salespersonId && p.email));
+    if (!targets.length){ setL('Follow-ups'); return; }
+    let scopeRetry = true;
+    for (let i=0;i<targets.length;i++){
+      const d = targets[i];
+      setL('Checking ' + (i+1) + '/' + targets.length + '…');
+      let fu;
+      try { fu = await checkOneFollowup(d, token); }
+      catch(e){
+        if (e && e.scope && scopeRetry){
+          scopeRetry = false;
+          try { const r = await requestToken(''); AUTH = Object.assign({}, AUTH||{}, { token:r.access_token, expires: Date.now()+((r.expires_in||3300)*1000)-60000 }); saveAuth(); token = AUTH.token; i--; continue; }
+          catch(_){ setL('Calendar access needed'); break; }
+        }
+        fu = { checkedAt:new Date().toISOString(), scheduled:false, noAccess:true };
+      }
+      if (fu && !fu.skipped){
+        const cur = DB.decks.find(x=>x.id===d.id) || d;
+        upsertDeck(Object.assign({}, cur, { followup: fu, updatedAt: new Date().toISOString() }));
+      }
+    }
+    renderDashboard();
+    setL('Follow-ups');
+  } finally { if (btn) btn.disabled = false; }
 }
 function enterApp(){
   const ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'none';
