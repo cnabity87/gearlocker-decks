@@ -2676,15 +2676,27 @@ const deckView = { search: '', sort: 'newest', page: 1 };
 let lastPageDecks = [];
 function currentPageDecks(){ return lastPageDecks; }
 const CAL_MINI = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+function parseDay(iso){ const p = String(iso || '').slice(0,10).split('-'); return new Date(+p[0], (+p[1]||1)-1, +p[2]||1); }   // calendar date, local — no TZ shift
+function dayDiff(aIso, bIso){ return Math.round((parseDay(aIso) - parseDay(bIso)) / 86400000); }
+function fmtDay(iso){ try { return parseDay(iso).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }); } catch(e){ return ''; } }
 function followupChip(deck){
   const fu = deck.followup;
   if (!fu) return null;
   if (fu.scheduled && fu.startTime){
-    const days = Math.ceil((new Date(fu.startTime).getTime() - Date.now()) / 86400000);
-    const when = days < 0 ? 'past' : days === 0 ? 'today' : days === 1 ? '1 day' : (days + ' days');
-    const short = new Date(fu.startTime).toLocaleDateString(undefined, { month:'short', day:'numeric' });
-    return el('span',{class:'fu-chip ' + (days < 0 ? 'fu-past' : 'fu-set'), title:'Follow-up ' + fmtDate(fu.startTime) + (fu.title ? (' — ' + fu.title) : '')},
-      el('span',{html: CAL_MINI}), short + ' · ' + when);
+    const startMs = new Date(fu.startTime).getTime();
+    const short = parseDay(fu.startTime).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    let label, title;
+    if (fu.firstCallDate){
+      const gap = dayDiff(fu.startTime, fu.firstCallDate);
+      label = short + ' · +' + gap + 'd';
+      title = 'Follow-up ' + fmtDay(fu.startTime) + ' — ' + gap + ' days after the first call (' + fmtDay(fu.firstCallDate) + ')';
+    } else {
+      const days = Math.ceil((startMs - Date.now()) / 86400000);
+      label = short + ' · in ' + days + 'd';
+      title = 'Follow-up ' + fmtDay(fu.startTime) + ' (first-call date unknown — showing days from today)';
+    }
+    return el('span',{class:'fu-chip ' + (startMs < Date.now() ? 'fu-past' : 'fu-set'), title: title},
+      el('span',{html: CAL_MINI}), label);
   }
   if (fu.noAccess) return el('span',{class:'fu-chip fu-none', title:'Couldn’t read this rep’s calendar — check Google Calendar sharing'}, 'Follow-up: ?');
   return el('span',{class:'fu-chip fu-none', title:'No upcoming follow-up on the rep’s calendar'}, 'No follow-up');
@@ -3583,24 +3595,26 @@ async function getGoogleAccessToken(){
    The HubSpot scheduler writes the booked follow-up to the rep's Google Calendar
    (prospect as a guest). We read the rep's calendar for an upcoming event whose
    guest is the deck's contact, and store {scheduled, startTime} on the deck. */
-async function fetchUpcomingMeeting(token, calendarId, contactEmail){
-  const nowISO = new Date().toISOString();
-  const maxISO = new Date(Date.now() + 1000*60*60*24*120).toISOString();
+async function fetchMeetings(token, calendarId, contactEmail){
+  const nowMs = Date.now();
+  const timeMin = new Date(nowMs - 1000*60*60*24*180).toISOString();   // look back 180d for the first call
+  const timeMax = new Date(nowMs + 1000*60*60*24*120).toISOString();   // and 120d ahead for the follow-up
   const u = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) +
-    '/events?singleEvents=true&orderBy=startTime&maxResults=10&timeMin=' + encodeURIComponent(nowISO) +
-    '&timeMax=' + encodeURIComponent(maxISO) + '&q=' + encodeURIComponent(contactEmail);
+    '/events?singleEvents=true&orderBy=startTime&maxResults=25&timeMin=' + encodeURIComponent(timeMin) +
+    '&timeMax=' + encodeURIComponent(timeMax) + '&q=' + encodeURIComponent(contactEmail);
   const r = await fetch(u, { headers: { Authorization: 'Bearer ' + token } });
   if (r.status === 401 || r.status === 403){ const t = await r.text(); throw { scope: /insufficient|scope|invalid.?token|ACCESS_TOKEN_SCOPE/i.test(t), noAccess: true }; }
   if (!r.ok) throw { noAccess: true };
   const data = await r.json();
   const wanted = contactEmail.toLowerCase().trim();
-  const items = (data.items || []).filter(e => e.status !== 'cancelled' && e.start && (e.start.dateTime || e.start.date));
-  const match = items.find(e =>
-    (e.attendees || []).some(a => String(a.email||'').toLowerCase().trim() === wanted) ||
-    String((e.summary||'') + ' ' + (e.description||'') + ' ' + (e.creator&&e.creator.email||'')).toLowerCase().includes(wanted)
-  );
-  if (!match) return { scheduled: false };
-  return { scheduled: true, startTime: match.start.dateTime || match.start.date, title: match.summary || '', htmlLink: match.htmlLink || '' };
+  const matches = (data.items || [])
+    .filter(e => e.status !== 'cancelled' && e.start && (e.start.dateTime || e.start.date))
+    .filter(e => (e.attendees || []).some(a => String(a.email||'').toLowerCase().trim() === wanted) ||
+                 String((e.summary||'') + ' ' + (e.description||'') + ' ' + (e.creator&&e.creator.email||'')).toLowerCase().includes(wanted))
+    .map(e => ({ start: e.start.dateTime || e.start.date, title: e.summary || '', ms: new Date(e.start.dateTime || e.start.date).getTime() }));
+  const future = matches.filter(m => m.ms > nowMs).sort((a,b)=>a.ms-b.ms)[0] || null;       // soonest upcoming = follow-up
+  const past   = matches.filter(m => m.ms <= nowMs).sort((a,b)=>b.ms-a.ms)[0] || null;       // most recent past = first call
+  return { future, past };
 }
 async function checkOneFollowup(deck, token){
   const sp = getTeam().find(p => p.id === deck.salespersonId);
@@ -3608,8 +3622,12 @@ async function checkOneFollowup(deck, token){
   const contact = (deck.contactEmail || '').trim();
   if (!contact || !repEmail) return { skipped: true };
   try {
-    const res = await fetchUpcomingMeeting(token, repEmail, contact);
-    return Object.assign({ checkedAt: new Date().toISOString() }, res);
+    const { future, past } = await fetchMeetings(token, repEmail, contact);
+    // first-call date: prefer the analyzed Fathom call date, else the most recent past calendar meeting
+    const firstCallDate = (deck.callGrade && deck.callGrade.meetingDate) ? deck.callGrade.meetingDate : (past ? past.start : null);
+    const base = { checkedAt: new Date().toISOString(), firstCallDate };
+    if (!future) return Object.assign(base, { scheduled: false });
+    return Object.assign(base, { scheduled: true, startTime: future.start, title: future.title });
   } catch (e) {
     if (e && e.scope) throw e;
     return { checkedAt: new Date().toISOString(), scheduled: false, noAccess: true };
