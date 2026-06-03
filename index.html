@@ -3390,7 +3390,7 @@ function renderSettingsTabs(){
   const tabs = document.getElementById('settings-tabs');
   if (!tabs) return;
   tabs.innerHTML = '';
-  [['pricing','Pricing'],['rubric','Call rubric'],['team','Team'],['automation','Automation']].forEach(([key,label]) => {
+  [['pricing','Pricing'],['rubric','Call rubric'],['team','Team'],['automation','Automation'],['google','Google sync']].forEach(([key,label]) => {
     tabs.appendChild(el('button',{ class:'settings-tab' + (settingsTab===key?' active':''), type:'button', onClick:()=>{ settingsTab = key; renderSettingsPage(); window.scrollTo(0,0); } }, label));
   });
 }
@@ -3401,10 +3401,46 @@ function renderSettingsPage(){
   if (settingsTab === 'rubric') body.appendChild(renderRubricEditor());
   else if (settingsTab === 'team') body.appendChild(renderTeamSettings());
   else if (settingsTab === 'automation') body.appendChild(renderAutomationSettings());
+  else if (settingsTab === 'google') body.appendChild(renderGoogleSettings());
   else {
     body.appendChild(el('p',{class:'settings-subtitle'}, 'Update pricing here and it flows into every deck’s pricing slide and proposal. Saved for the whole team.'));
     body.appendChild(renderSettingsForm());
   }
+}
+function renderGoogleSettings(){
+  const wrap = el('div',{});
+  wrap.appendChild(el('p',{class:'settings-subtitle'}, 'Connect your Google account once. GearLocker then sweeps your Gmail and Calendar in the background and drops every email and meeting it can match — by email address — onto the right lead’s timeline. Read-only, and it stays connected.'));
+  const card = el('div',{class:'lead-card', style:'max-width:600px'});
+  if (!AUTH){ card.appendChild(el('div',{class:'lead-tl-sub'},'Sign in with Google to connect.')); wrap.appendChild(card); return wrap; }
+  card.appendChild(el('div',{class:'lead-card-h'},'Google account'));
+  card.appendChild(infoRow('Signed in', AUTH.email));
+  const status = el('div',{class:'gsync-status', style:'margin-top:6px'});
+  const draw = () => {
+    status.innerHTML='';
+    if (AUTH.gmail === false){
+      status.appendChild(el('div',{class:'lead-tl-sub', style:'margin-bottom:12px'}, 'Email & calendar sync isn’t enabled yet — Google hasn’t granted read access.'));
+      const b = el('button',{class:'btn sm primary', type:'button', onClick: async () => { b.disabled=true; b.textContent='Connecting…'; try { await connectGoogle(); } catch(e){} draw(); } }, 'Connect Gmail & Calendar');
+      status.appendChild(b);
+    } else {
+      const c = GACTIVITY.counts || {emails:0,meetings:0,contacts:0};
+      status.appendChild(el('div',{class:'lead-tl-sub'}, GACTIVITY.syncedAt
+        ? ('✓ Synced ' + fmtDay(GACTIVITY.syncedAt) + ' — ' + c.emails + ' email' + (c.emails===1?'':'s') + ' and ' + c.meetings + ' meeting' + (c.meetings===1?'':'s') + ' matched to ' + c.contacts + ' lead' + (c.contacts===1?'':'s') + '.')
+        : (GACTIVITY.syncing ? 'Connected — syncing now…' : 'Connected — not synced yet.')));
+      const row = el('div',{style:'margin-top:14px; display:flex; gap:8px; flex-wrap:wrap'});
+      const sb = el('button',{class:'btn sm', type:'button', onClick: async () => {
+        sb.disabled=true; const res = await syncGoogleActivity({ interactive:true, onProgress:(m)=>{ sb.textContent=m; } });
+        sb.disabled=false; sb.textContent='Sync now'; draw();
+        if (res && res.scopeMissing) draw();
+      }}, 'Sync now');
+      row.appendChild(sb);
+      row.appendChild(el('button',{class:'btn ghost sm', type:'button', onClick: async () => { try { await connectGoogle(); } catch(e){} draw(); } }, 'Reconnect'));
+      status.appendChild(row);
+    }
+  };
+  draw();
+  card.appendChild(status);
+  wrap.appendChild(card);
+  return wrap;
 }
 function renderTeamSettings(){
   const wrap = el('div',{});
@@ -3766,6 +3802,115 @@ async function reconnectGoogle(deck){
     if (deck && state.view==='lead' && state.leadId===deck.id) renderLead(deck);
   } catch(e){ /* user cancelled */ }
 }
+
+/* ====================================================================
+   Google activity sync — connect once, then a background sweep matches
+   your Gmail + Calendar to every lead by email and caches the result so
+   timelines load instantly (no per-lead auth, no re-prompting).
+   ==================================================================== */
+let GACTIVITY = { byEmail:{}, meetingsByEmail:{}, syncedAt:null, syncing:false, counts:{emails:0,meetings:0,contacts:0} };
+function gactKey(){ return 'gl_gactivity_' + String((AUTH&&AUTH.email)||'').toLowerCase(); }
+function loadGActivity(){ try { const a=JSON.parse(localStorage.getItem(gactKey())||'null'); if (a&&a.byEmail){ GACTIVITY=Object.assign({byEmail:{},meetingsByEmail:{},syncedAt:null,syncing:false,counts:{emails:0,meetings:0,contacts:0}}, a, {syncing:false}); } } catch(e){} }
+function saveGActivity(){ try { localStorage.setItem(gactKey(), JSON.stringify({ byEmail:GACTIVITY.byEmail, meetingsByEmail:GACTIVITY.meetingsByEmail, syncedAt:GACTIVITY.syncedAt, counts:GACTIVITY.counts })); } catch(e){} }
+function extractEmails(s){ return (String(s||'').match(/[\w.+-]+@[\w-]+\.[\w.-]+/g)||[]).map(x=>x.toLowerCase()); }
+function cachedEmailsFor(deck){ const e=(deck.contactEmail||'').toLowerCase().trim(); return e ? (GACTIVITY.byEmail[e]||[]) : []; }
+function cachedMeetingsFor(deck){ const e=(deck.contactEmail||'').toLowerCase().trim(); return e ? (GACTIVITY.meetingsByEmail[e]||[]) : []; }
+async function getTokenSilent(){
+  if (AUTH && AUTH.token && Date.now() < AUTH.expires) return AUTH.token;
+  try { const r=await requestToken('none'); AUTH=Object.assign({},AUTH||{},{ token:r.access_token, expires:Date.now()+((r.expires_in||3300)*1000)-60000 }); saveAuth(); return AUTH.token; }
+  catch(e){ return null; }
+}
+async function syncGoogleActivity(opts){
+  opts = opts || {};
+  if (!GOOGLE_CLIENT_ID || !AUTH) return { error:'noauth' };
+  if (GACTIVITY.syncing) return { busy:true };
+  const token = opts.interactive ? await getGoogleAccessToken().catch(()=>null) : await getTokenSilent();
+  if (!token) return { error:'notoken' };
+  GACTIVITY.syncing = true;
+  const prog = m => { if (opts.onProgress) opts.onProgress(m); };
+  try {
+    const decks = getDecks();
+    const contacts = [...new Set(decks.map(d=>(d.contactEmail||'').toLowerCase().trim()).filter(Boolean))];
+    const contactSet = new Set(contacts);
+    const byEmail = {}, meetingsByEmail = {};
+    let scopeMissing = false;
+    // ---- Gmail: targeted OR-queries by known contacts, then header metadata ----
+    if (contacts.length){
+      const ids = new Set();
+      for (let i=0;i<contacts.length;i+=18){
+        const chunk = contacts.slice(i,i+18);
+        const q = chunk.map(e=>'from:'+e+' OR to:'+e).join(' OR ');
+        try {
+          const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q='+encodeURIComponent(q), { headers:{ Authorization:'Bearer '+token } });
+          if (lr.status===401 || lr.status===403){ scopeMissing = true; break; }
+          if (lr.ok){ const j = await lr.json(); (j.messages||[]).forEach(m=>ids.add(m.id)); }
+        } catch(e){}
+        prog('Scanning email… '+Math.min(i+18,contacts.length)+'/'+contacts.length+' contacts');
+      }
+      if (!scopeMissing){
+        const idArr = [...ids].slice(0,700); const me = String(AUTH.email||'').toLowerCase();
+        for (let i=0;i<idArr.length;i+=10){
+          const metas = await Promise.all(idArr.slice(i,i+10).map(async id => {
+            try { const mr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Date', { headers:{ Authorization:'Bearer '+token } }); return mr.ok ? await mr.json() : null; }
+            catch(e){ return null; }
+          }));
+          metas.filter(Boolean).forEach(m => {
+            const hs={}; ((m.payload&&m.payload.headers)||[]).forEach(h=>{ hs[String(h.name).toLowerCase()]=h.value; });
+            let date=null; if (m.internalDate) date=new Date(Number(m.internalDate)).toISOString(); else if (hs['date']){ const d=new Date(hs['date']); if(!isNaN(d)) date=d.toISOString(); }
+            if (!date) return;
+            const sent = String(hs['from']||'').toLowerCase().includes(me);
+            const parties = new Set([...extractEmails(hs['from']), ...extractEmails(hs['to']), ...extractEmails(hs['cc'])]);
+            parties.forEach(p => { if (contactSet.has(p)) (byEmail[p]=byEmail[p]||[]).push({ date, subject: hs['subject']||'(no subject)', sent }); });
+          });
+          prog('Reading email… '+Math.min(i+10,idArr.length)+'/'+idArr.length);
+        }
+      }
+    }
+    // ---- Calendar: sweep the rep's own calendar window once, index attendees ----
+    try {
+      const now=Date.now();
+      const timeMin=new Date(now-1000*60*60*24*365).toISOString(), timeMax=new Date(now+1000*60*60*24*150).toISOString();
+      let pageToken='', pages=0;
+      do {
+        const u='https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(AUTH.email)+'/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin='+encodeURIComponent(timeMin)+'&timeMax='+encodeURIComponent(timeMax)+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+        const r=await fetch(u,{ headers:{ Authorization:'Bearer '+token } });
+        if (!r.ok) break;
+        const data=await r.json();
+        (data.items||[]).forEach(e => {
+          if (e.status==='cancelled' || !e.start || !(e.start.dateTime||e.start.date)) return;
+          const start=e.start.dateTime||e.start.date;
+          const guests=new Set((e.attendees||[]).map(a=>String(a.email||'').toLowerCase()));
+          extractEmails(((e.organizer&&e.organizer.email)||'')+' '+((e.creator&&e.creator.email)||'')+' '+(e.summary||'')+' '+(e.description||'')).forEach(x=>guests.add(x));
+          guests.forEach(g => { if (contactSet.has(g)) (meetingsByEmail[g]=meetingsByEmail[g]||[]).push({ start, title:e.summary||'Meeting' }); });
+        });
+        pageToken=data.nextPageToken||''; pages++;
+        prog('Scanning calendar…');
+      } while (pageToken && pages<3);
+    } catch(e){}
+    const dedupe=(arr,kf)=>{ const seen=new Set(); return arr.filter(x=>{ const k=kf(x); if(seen.has(k))return false; seen.add(k); return true; }); };
+    Object.keys(byEmail).forEach(k=>byEmail[k]=dedupe(byEmail[k],x=>x.date+'|'+x.subject).sort((a,b)=>new Date(b.date)-new Date(a.date)));
+    Object.keys(meetingsByEmail).forEach(k=>meetingsByEmail[k]=dedupe(meetingsByEmail[k],x=>x.start+'|'+x.title).sort((a,b)=>new Date(b.start)-new Date(a.start)));
+    AUTH.gmail = !scopeMissing; saveAuth();
+    GACTIVITY.byEmail=byEmail; GACTIVITY.meetingsByEmail=meetingsByEmail; GACTIVITY.syncedAt=new Date().toISOString();
+    GACTIVITY.counts={ emails:Object.values(byEmail).reduce((a,v)=>a+v.length,0), meetings:Object.values(meetingsByEmail).reduce((a,v)=>a+v.length,0), contacts:new Set([...Object.keys(byEmail),...Object.keys(meetingsByEmail)]).size };
+    saveGActivity();
+    return scopeMissing ? { scopeMissing:true, counts:GACTIVITY.counts } : { ok:true, counts:GACTIVITY.counts };
+  } finally { GACTIVITY.syncing=false; }
+}
+async function connectGoogle(){
+  const r = await requestToken('consent');   // force the consent screen so the Gmail-read scope is granted
+  AUTH = Object.assign({}, AUTH||{}, { token:r.access_token, expires:Date.now()+((r.expires_in||3300)*1000)-60000 });
+  delete AUTH.gmail; saveAuth();
+  return await syncGoogleActivity({ interactive:false });
+}
+function maybeAutoSync(){
+  if (!AUTH || AUTH.gmail===false) return;   // not connected yet → user connects from Settings
+  const stale = !GACTIVITY.syncedAt || (Date.now() - new Date(GACTIVITY.syncedAt).getTime() > 15*60*1000);
+  if (!stale || GACTIVITY.syncing) return;
+  syncGoogleActivity().then(r => {
+    if (r && r.ok && state.view==='lead'){ const d=getDecks().find(x=>x.id===state.leadId); if (d) renderLead(d); }
+  }).catch(()=>{});
+}
 function suggestForLead(deck, box, statusEl){
   if (!SUPABASE_URL){ statusEl.textContent = 'Cloud isn’t configured.'; return; }
   statusEl.textContent = 'Reading the deal and recommending the next step…';
@@ -3854,18 +3999,22 @@ function renderLead(deck){
   tlCard.appendChild(tlList);
   grid.appendChild(el('div',{class:'lead-right'}, recBox, renderLeadTasks(deck), tlCard));
   body.appendChild(grid);
-  const paintTL = (meetings, emails, scopeMissing) => {
+  const paintTL = () => {
     if (!(state.view==='lead' && state.leadId===deck.id)) return;
     tlList.innerHTML='';
-    leadTimeline(deck, meetings, emails).forEach(e => tlList.appendChild(timelineRow(e)));
-    if (scopeMissing && AUTH){
+    leadTimeline(deck, cachedMeetingsFor(deck), cachedEmailsFor(deck)).forEach(e => tlList.appendChild(timelineRow(e)));
+    if (AUTH && AUTH.gmail===false){
       tlList.appendChild(el('div',{class:'lead-tl-connect'},
-        el('span',{class:'lead-tl-sub'},'Connect Gmail (read-only) to see your email history with this contact.'),
-        el('button',{class:'btn ghost sm', type:'button', onClick:()=>reconnectGoogle(deck)},'Connect Gmail')));
+        el('span',{class:'lead-tl-sub'},'Connect Google once to sync email & calendar across every lead.'),
+        el('button',{class:'btn ghost sm', type:'button', onClick:()=>openSettingsPage('google')},'Open settings')));
+    } else if (AUTH && GACTIVITY.syncing && !GACTIVITY.syncedAt){
+      tlList.appendChild(el('div',{class:'lead-tl-connect'}, el('span',{class:'lead-tl-sub'},'Syncing your email & calendar…')));
     }
   };
-  Promise.all([ fetchMeetingsAll(deck).catch(()=>[]), fetchEmailsAll(deck).catch(()=>({items:[],scopeMissing:false})) ])
-    .then(([meetings, em]) => paintTL(meetings||[], (em&&em.items)||[], !!(em&&em.scopeMissing)));
+  paintTL();
+  if (AUTH && AUTH.gmail!==false && !GACTIVITY.syncedAt && !GACTIVITY.syncing){
+    syncGoogleActivity().then(()=>paintTL()).catch(()=>{});
+  }
 }
 function openLead(deck, returnView){ state.leadReturn = returnView || (state.view==='pipeline'?'pipeline':'dashboard'); state.view='lead'; state.leadId=deck.id; renderLead(deck); document.getElementById('lead-page').style.display=''; window.scrollTo(0,0); }
 function backFromLead(){ document.getElementById('lead-page').style.display='none'; const rv = state.leadReturn || 'dashboard'; state.view = rv; if (rv==='pipeline') renderPipeline(); else renderDashboard(); window.scrollTo(0,0); }
@@ -5024,6 +5173,8 @@ async function initDashboard(){
   }
   showSection('leads');   // render the Leads section + the top nav
   runAutoTasks();   // auto-grade calls + auto-check follow-ups in the background (throttled, silent)
+  loadGActivity();  // restore cached Google activity (instant timelines)
+  maybeAutoSync();  // background refresh of Gmail + Calendar matches if connected & stale
 }
 // (Manual "refresh" button + sync badge removed — decks save to the shared cloud on
 //  every change and auto-pull on load and whenever you return to the tab.)
