@@ -1960,6 +1960,24 @@
   .lb-grade { font-weight: 800; }
   .lb-sub2 { color: var(--ink-4); font-size: 12px; }
   .lb-num.lb-warn { color: #c62b25; font-weight: 700; }
+  .lb-trends { margin-top: 40px; }
+  .lb-h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .lb-trend-list { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+  .trend-row { display: grid; grid-template-columns: minmax(0,1.4fr) 140px 1.3fr; align-items: center; gap: 16px; padding: 11px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .trend-row.team { background: var(--surface); }
+  .trend-rep { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .trend-n { font-size: 12px; font-weight: 500; color: var(--ink-4); }
+  .trend-spark { display: flex; align-items: center; }
+  .trend-meta { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+  .trend-delta { font-weight: 700; font-size: 13px; }
+  .trend-delta.up { color: #1f9d55; }
+  .trend-delta.down { color: #c62b25; }
+  .trend-delta.flat { color: var(--ink-4); }
+  .trend-latest { color: var(--ink-4); font-size: 12.5px; }
+  .trend-stat { display: flex; gap: 12px; align-items: flex-start; margin-top: 20px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .trend-stat-icon { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .trend-stat-h { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+  .trend-stat-p { font-size: 13px; color: var(--ink-3); margin-top: 3px; }
   .auto-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--border); }
   .auto-h { font-size: 15px; font-weight: 700; color: var(--ink); }
   .auto-p { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 4px; max-width: 580px; }
@@ -3266,6 +3284,48 @@ function repStats(decks){
     emailed: decks.filter(d=>d.emailedAt).length,
     won, lost, winRate: (won+lost) ? Math.round(100*won/(won+lost)) : null };
 }
+function avgOf(arr){ return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null; }
+/* Grades over time for a set of decks (sorted by call date). delta = recent half vs earlier half. */
+function gradeTrend(decks){
+  const graded = decks.filter(d => d.callGrade && typeof d.callGrade.overall === 'number' && (d.callGrade.meetingDate || d.callGrade.analyzedAt));
+  graded.sort((a,b)=> String(a.callGrade.meetingDate||a.callGrade.analyzedAt).localeCompare(String(b.callGrade.meetingDate||b.callGrade.analyzedAt)));
+  const series = graded.map(d => d.callGrade.overall);
+  if (series.length < 2) return { series, delta: null, latest: series[series.length-1] ?? null };
+  const mid = Math.floor(series.length/2);
+  return { series, delta: avgOf(series.slice(mid)) - avgOf(series.slice(0, mid)), latest: series[series.length-1] };
+}
+/* Days from first call → booked follow-up, over time. delta<0 = booked sooner (good). */
+function followupTimingTrend(decks){
+  const gaps = decks
+    .filter(d => d.followup && d.followup.scheduled && d.followup.startTime && d.followup.firstCallDate)
+    .map(d => ({ gap: dayDiff(d.followup.startTime, d.followup.firstCallDate), when: d.followup.firstCallDate }))
+    .filter(x => x.gap >= 0)
+    .sort((a,b)=> String(a.when).localeCompare(String(b.when)));
+  if (!gaps.length) return null;
+  const all = gaps.map(g=>g.gap);
+  if (gaps.length < 4) return { avg: avgOf(all), delta: null, n: gaps.length };
+  const mid = Math.floor(gaps.length/2);
+  return { avg: avgOf(all), delta: avgOf(all.slice(mid)) - avgOf(all.slice(0, mid)), n: gaps.length };
+}
+function sparklineSvg(values, color){
+  const w=128, h=30, pad=4;
+  if (!values || values.length < 2) return '';
+  const pts = values.map((v,i)=>{
+    const x = pad + (i/(values.length-1))*(w-2*pad);
+    const y = pad + (1 - Math.max(0,Math.min(100,v))/100)*(h-2*pad);
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  const last = values[values.length-1];
+  const lx = w-pad, ly = pad + (1 - Math.max(0,Math.min(100,last))/100)*(h-2*pad);
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="2.6" fill="'+color+'"/></svg>';
+}
+function deltaChip(delta, betterWhen){
+  // betterWhen: 'up' (higher is better, e.g. grades) or 'down' (lower is better, e.g. days-to-followup)
+  if (delta == null || delta === 0) return el('span',{class:'trend-delta flat'}, delta===0 ? 'flat' : '—');
+  const improving = betterWhen === 'down' ? delta < 0 : delta > 0;
+  const arrow = delta > 0 ? '▲' : '▼';
+  return el('span',{class:'trend-delta ' + (improving ? 'up' : 'down')}, arrow + ' ' + Math.abs(delta));
+}
 function renderLeaderboard(){
   const body = document.getElementById('leaderboard-body');
   body.innerHTML = '';
@@ -3295,6 +3355,47 @@ function renderLeaderboard(){
     ));
   });
   body.appendChild(table);
+
+  // ---- Trends ----
+  const trends = el('div',{class:'lb-trends'});
+  trends.appendChild(el('h2',{class:'lb-h2'},'Call-grade trend'));
+  trends.appendChild(el('p',{class:'lb-sub'},'Each rep’s call grades over time (oldest → newest). Is the coaching landing?'));
+  const trendRows = el('div',{class:'lb-trend-list'});
+  const teamTrend = gradeTrend(decks);
+  const trendGroups = [{ name:'Whole team', trend: teamTrend, bold:true }]
+    .concat(groups.filter(g=>!g.muted).map(g => ({ name:g.name, trend: gradeTrend(g.decks) })));
+  let any = false;
+  trendGroups.forEach(g => {
+    const t = g.trend;
+    if (!t || t.series.length < 2) return;
+    any = true;
+    const color = t.delta != null ? (t.delta >= 0 ? '#1f9d55' : '#c62b25') : 'var(--ink-3)';
+    trendRows.appendChild(el('div',{class:'trend-row' + (g.bold?' team':'')},
+      el('div',{class:'trend-rep'}, g.name, el('span',{class:'trend-n'}, ' · ' + t.series.length + ' calls')),
+      el('div',{class:'trend-spark', html: sparklineSvg(t.series, color)}),
+      el('div',{class:'trend-meta'},
+        deltaChip(t.delta, 'up'),
+        el('span',{class:'trend-latest'}, 'latest ' + (t.latest!=null ? (letterGrade(t.latest) + ' · ' + t.latest) : '—'))
+      )
+    ));
+  });
+  if (!any) trendRows.appendChild(el('div',{class:'lb-sub'},'Grade at least 2 calls for a rep to see their trend.'));
+  trends.appendChild(trendRows);
+
+  // follow-up timing
+  const ft = followupTimingTrend(decks);
+  if (ft){
+    trends.appendChild(el('div',{class:'trend-stat'},
+      el('span',{class:'trend-stat-icon', html:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'}),
+      el('div',{},
+        el('div',{class:'trend-stat-h'}, 'Follow-ups are booked on average ' + ft.avg + ' day' + (ft.avg===1?'':'s') + ' after the first call'),
+        ft.delta != null
+          ? el('div',{class:'trend-stat-p'}, Math.abs(ft.delta) + ' day' + (Math.abs(ft.delta)===1?'':'s') + ' ' + (ft.delta < 0 ? 'sooner' : 'later') + ' than earlier deals' + (ft.delta < 0 ? ' — booking faster 👍' : ''), ' (across ' + ft.n + ' booked)')
+          : el('div',{class:'trend-stat-p'}, 'across ' + ft.n + ' booked follow-up' + (ft.n===1?'':'s'))
+      )
+    ));
+  }
+  body.appendChild(trends);
 }
 function openLeaderboard(){ state.view='leaderboard'; renderLeaderboard(); document.getElementById('leaderboard-page').style.display=''; window.scrollTo(0,0); }
 function backFromLeaderboard(){ state.view='dashboard'; document.getElementById('leaderboard-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
