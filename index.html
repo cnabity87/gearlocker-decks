@@ -1928,6 +1928,17 @@
   .email-attach { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 4px; }
   .email-attach svg { color: var(--ink-4); flex-shrink: 0; }
   .email-status { font-size: 12.5px; color: var(--accent-dark); margin-top: 8px; min-height: 16px; }
+  /* pricing settings */
+  .setting-sec { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin: 24px 0 6px; }
+  .setting-sec:first-of-type { margin-top: 10px; }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+  .setting-name { font-size: 14.5px; font-weight: 600; color: var(--ink); display: flex; flex-direction: column; min-width: 0; }
+  .setting-name span { font-size: 12px; font-weight: 400; color: var(--ink-4); margin-top: 2px; }
+  .setting-fields { display: flex; gap: 14px; flex-shrink: 0; }
+  .setting-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 600; color: var(--ink-3); }
+  .setting-fields input { width: 118px; box-sizing: border-box; font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); }
+  .setting-fields input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
+  .modal-foot.split { justify-content: space-between; }
   .field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .field-head label { margin-bottom: 0; }
   .personalize-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent-border, #f3c9c6); }
@@ -2083,6 +2094,10 @@
       </div>
       <div class="dash-actions">
         <button class="user-chip" id="user-chip" type="button" style="display:none"></button>
+        <button class="btn ghost" id="settings-btn" type="button" title="Edit pricing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </button>
         <button class="btn ghost" id="team-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Team
@@ -2300,20 +2315,52 @@ const ORG_CATEGORIES = [
    Source: gearlocker-pricing (Schools). Onboarding is a one-time fee;
    annual is the recurring subscription. SIS integration is optional.
    --------------------------------------------------------------------- */
-const SCHOOL_TIERS = [
+let SCHOOL_TIERS = [
   { key:'micro',  name:'Micro',  band:'Under 250 students',  max:249,      annual:1200, onboarding:1000 },
   { key:'small',  name:'Small',  band:'250–750 students',    max:750,      annual:1800, onboarding:1000 },
   { key:'medium', name:'Medium', band:'750–2,000 students',  max:2000,     annual:2600, onboarding:1000 },
   { key:'large',  name:'Large',  band:'2,000+ students',     max:Infinity, annual:3600, onboarding:1500 }
 ];
-const SIS_ADDON_ANNUAL = 500;   // optional SIS integration, per year
+let SIS_ADDON_ANNUAL = 500;     // optional SIS integration, per year
 const LABOR_RATE        = 25;   // $/hr — conservative loaded admin + coach time
 const GL_LOSS_FLOOR     = 3;    // verified loss rate (%) after GearLocker rollout
+// QR label packs (shown on the proposal add-on page) — price per unit + min order
+let LABELS_CFG = [
+  { name:'Bag Tags (Heavy-Duty)', best:'Duffels, backpacks, sideline storage. Includes key ring.', price:0.75, min:500 },
+  { name:'QR Sticker Labels', best:'Helmets, shoulder pads, hard surfaces. NFC upgrade available.', price:0.75, min:500 },
+  { name:'Heat-Press Apparel', best:'Uniforms, warm-ups, laundry-heavy items. Won’t peel or fade.', price:1.00, min:500 }
+];
 
 function pickTier(enrollment) {
   const e = Number(enrollment) || 0;
   if (!e) return null;
   return SCHOOL_TIERS.find(t => e <= t.max) || SCHOOL_TIERS[SCHOOL_TIERS.length - 1];
+}
+
+/* ---- Editable pricing (Settings panel) — flows into the deck + proposal ---- */
+const PRICING_KEY = 'gl_pricing_v1';
+function pricingConfig(){            // the editable subset we save/sync
+  return {
+    tiers: SCHOOL_TIERS.map(t => ({ key:t.key, annual:t.annual, onboarding:t.onboarding })),
+    sisAnnual: SIS_ADDON_ANNUAL,
+    labels: LABELS_CFG.map(l => ({ price:l.price, min:l.min }))
+  };
+}
+function applyPricing(cfg){          // merge a saved config into the live pricing objects
+  if (!cfg) return;
+  if (Array.isArray(cfg.tiers)) cfg.tiers.forEach(c => {
+    const t = SCHOOL_TIERS.find(x => x.key === c.key);
+    if (t){ if (c.annual != null && c.annual !== '') t.annual = Number(c.annual); if (c.onboarding != null && c.onboarding !== '') t.onboarding = Number(c.onboarding); }
+  });
+  if (cfg.sisAnnual != null && cfg.sisAnnual !== '') SIS_ADDON_ANNUAL = Number(cfg.sisAnnual);
+  if (Array.isArray(cfg.labels)) cfg.labels.forEach((c, i) => {
+    if (LABELS_CFG[i]){ if (c.price != null && c.price !== '') LABELS_CFG[i].price = Number(c.price); if (c.min != null && c.min !== '') LABELS_CFG[i].min = Number(c.min); }
+  });
+}
+function savePricing(cfg){
+  applyPricing(cfg);
+  saveJSON(PRICING_KEY, pricingConfig());
+  if (cloudOn()) sbUpsert('settings', 'pricing', pricingConfig()).catch(e => console.warn('pricing sync failed', e));
 }
 function isRealSis(sis) { return sis && sis !== 'Other / Not sure'; }
 function fmtPayback(year1, totalReturn) {
@@ -2423,6 +2470,8 @@ const DB = {
   decks: loadJSON(DECKS_KEY, []),
   team:  loadJSON(TEAM_KEY, null) || (cloudOn() ? [] : [{ id:'sp_keenan', name:'Keenan McCurdy', email:'keenan@gearlocker.com', phone:'' }])
 };
+const PRICING_DEFAULTS = pricingConfig();    // snapshot the hardcoded defaults (for Reset)
+applyPricing(loadJSON(PRICING_KEY, null));   // restore saved pricing (cloud copy loads in refreshFromCloud)
 function getDecks(){ return DB.decks; }
 function getTeam(){ return DB.team; }
 function persistDecks(){ saveJSON(DECKS_KEY, DB.decks); }
@@ -2465,10 +2514,12 @@ function removePersonRec(id){
 /* --- Pull the latest shared data from the cloud --- */
 async function refreshFromCloud(){
   if (!cloudOn()) return;
-  const [decks, team] = await Promise.all([sbList('decks'), sbList('salespeople')]);
+  const [decks, team, settings] = await Promise.all([sbList('decks'), sbList('salespeople'), sbList('settings').catch(()=>[])]);
   decks.sort((a, b) => String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   DB.decks = decks; persistDecks();
   DB.team = team; persistTeam();
+  const pricing = (settings || []).find(s => s && s.tiers);   // the pricing doc
+  if (pricing){ applyPricing(pricing); saveJSON(PRICING_KEY, pricingConfig()); }
 }
 const uid = (p) => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
 const initials = (name) => ((name||'').trim().split(/\s+/).map(w=>w[0]||'').slice(0,2).join('').toUpperCase()) || '–';
@@ -2714,8 +2765,67 @@ function openTeamModal(){
   openModal(wrap);
 }
 
+function openSettingsModal(){
+  closeModal();
+  const tierInputs = SCHOOL_TIERS.map(t => ({
+    key: t.key,
+    annual:     el('input',{type:'number', min:'0', step:'50', value: t.annual}),
+    onboarding: el('input',{type:'number', min:'0', step:'50', value: t.onboarding})
+  }));
+  const sisInput = el('input',{type:'number', min:'0', step:'50', value: SIS_ADDON_ANNUAL});
+  const labelInputs = LABELS_CFG.map(l => ({
+    price: el('input',{type:'number', min:'0', step:'0.05', value: l.price}),
+    min:   el('input',{type:'number', min:'0', step:'50', value: l.min})
+  }));
+  const save = () => {
+    savePricing({
+      tiers: tierInputs.map(ti => ({ key:ti.key, annual: ti.annual.value, onboarding: ti.onboarding.value })),
+      sisAnnual: sisInput.value,
+      labels: labelInputs.map(li => ({ price: li.price.value, min: li.min.value }))
+    });
+    closeModal();
+    renderDashboard();
+  };
+  const tierRows = SCHOOL_TIERS.map((t, i) => el('div',{class:'setting-row'},
+    el('div',{class:'setting-name'}, t.name, el('span',{}, t.band)),
+    el('div',{class:'setting-fields'},
+      el('label',{}, 'Annual / yr ($)', tierInputs[i].annual),
+      el('label',{}, 'Onboarding ($)', tierInputs[i].onboarding)
+    )
+  ));
+  const labelRows = LABELS_CFG.map((l, i) => el('div',{class:'setting-row'},
+    el('div',{class:'setting-name'}, l.name),
+    el('div',{class:'setting-fields'},
+      el('label',{}, 'Price / unit ($)', labelInputs[i].price),
+      el('label',{}, 'Min order (units)', labelInputs[i].min)
+    )
+  ));
+  const body = el('div',{},
+    el('div',{class:'modal-h'},'Pricing settings'),
+    el('div',{class:'modal-desc'},'Update pricing here and it flows into every deck’s pricing slide and proposal. Changes save for the whole team.'),
+    el('div',{class:'setting-sec'},'School plans (by enrollment)'),
+    ...tierRows,
+    el('div',{class:'setting-sec'},'Add-ons'),
+    el('div',{class:'setting-row'},
+      el('div',{class:'setting-name'},'SIS integration', el('span',{},'Optional roster sync, per year')),
+      el('div',{class:'setting-fields'}, el('label',{}, 'Annual / yr ($)', sisInput))
+    ),
+    el('div',{class:'setting-sec'},'QR label packs'),
+    ...labelRows,
+    el('div',{class:'modal-foot split'},
+      el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ if(confirm('Reset all pricing to the original defaults?')){ savePricing(PRICING_DEFAULTS); closeModal(); renderDashboard(); } }},'Reset to defaults'),
+      el('div',{style:'display:flex;gap:10px'},
+        el('button',{class:'btn', onClick:closeModal},'Cancel'),
+        el('button',{class:'btn primary', onClick:save},'Save changes')
+      )
+    )
+  );
+  openModal(body, { drawer: true });
+}
+
 document.getElementById('new-deck-btn').addEventListener('click', openCreateModal);
 document.getElementById('team-btn').addEventListener('click', openTeamModal);
+document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
 
 /* --- Open a deck (dashboard → presentation) --- */
 function openDeck(id){
@@ -2944,11 +3054,7 @@ function buildProposalPages(deck){
   ));
 
   // PAGE 6 — QR labels add-on + customer stories
-  const LABELS = [
-    ['Bag Tags (Heavy-Duty)','Duffels, backpacks, sideline storage. Includes key ring.','$0.75','500 units'],
-    ['QR Sticker Labels','Helmets, shoulder pads, hard surfaces. NFC upgrade available.','$0.75','500 units'],
-    ['Heat-Press Apparel','Uniforms, warm-ups, laundry-heavy items. Won’t peel or fade.','$1.00','500 units']
-  ];
+  const LABELS = LABELS_CFG.map(l => [l.name, l.best, '$' + Number(l.price).toFixed(2), fmtNum(l.min) + ' units']);
   const quotes = [TESTIMONIALS[2], TESTIMONIALS[1]];
   pages.push(propPage(
     el('div',{class:'prop-section'},
