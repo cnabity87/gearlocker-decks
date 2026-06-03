@@ -1939,6 +1939,11 @@
   .setting-fields input { width: 118px; box-sizing: border-box; font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); }
   .setting-fields input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
   .modal-foot.split { justify-content: space-between; }
+  .settings-main { max-width: 760px; margin: 0 auto; padding: 40px 40px 100px; }
+  .settings-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; color: var(--ink); }
+  .settings-subtitle { font-size: 15px; color: var(--ink-3); margin: 0 0 6px; line-height: 1.5; }
+  .settings-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--border); }
+  .settings-saved { font-size: 13px; font-weight: 600; color: var(--success); }
   .field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .field-head label { margin-bottom: 0; }
   .personalize-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent-border, #f3c9c6); }
@@ -2128,6 +2133,27 @@
     </div>
   </div>
 
+  <!-- Settings page (pricing) -->
+  <div class="dash" id="settings-page" style="display:none; z-index:31;">
+    <div class="dash-top">
+      <div class="dash-brand">
+        <span class="brand-mark" id="brand-mark-settings"></span>
+        <span class="dash-brand-sub">Pricing</span>
+      </div>
+      <div class="dash-actions">
+        <button class="btn ghost" id="settings-back" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Back to decks
+        </button>
+      </div>
+    </div>
+    <div class="settings-main">
+      <h1 class="settings-title">Pricing settings</h1>
+      <p class="settings-subtitle">Update pricing here and it flows into every deck’s pricing slide and proposal. Changes save for the whole team.</p>
+      <div id="settings-body"></div>
+    </div>
+  </div>
+
   <!-- Modals (create deck / manage team) -->
   <div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal"></div></div>
 
@@ -2178,7 +2204,7 @@ const LOGO_IMG_DARK  = '<img src="' + LOGO_DATA + '" alt="GearLocker" />';
 const LOGO_IMG_WHITE = '<img src="' + LOGO_DATA + '" alt="GearLocker" style="filter:brightness(0) invert(1)" />';
 /* Legacy alias — anything that historically used LOGO_SVG gets the dark img. */
 const LOGO_SVG = LOGO_IMG_DARK;
-['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login'].forEach(id => {
+['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = LOGO_IMG_DARK;
 });
@@ -2765,8 +2791,7 @@ function openTeamModal(){
   openModal(wrap);
 }
 
-function openSettingsModal(){
-  closeModal();
+function renderSettingsForm(){
   const tierInputs = SCHOOL_TIERS.map(t => ({
     key: t.key,
     annual:     el('input',{type:'number', min:'0', step:'50', value: t.annual}),
@@ -2777,14 +2802,15 @@ function openSettingsModal(){
     price: el('input',{type:'number', min:'0', step:'0.05', value: l.price}),
     min:   el('input',{type:'number', min:'0', step:'50', value: l.min})
   }));
+  const status = el('span',{class:'settings-saved'}, '');
   const save = () => {
     savePricing({
       tiers: tierInputs.map(ti => ({ key:ti.key, annual: ti.annual.value, onboarding: ti.onboarding.value })),
       sisAnnual: sisInput.value,
       labels: labelInputs.map(li => ({ price: li.price.value, min: li.min.value }))
     });
-    closeModal();
-    renderDashboard();
+    status.textContent = 'Saved ✓';
+    setTimeout(() => { status.textContent = ''; }, 2500);
   };
   const tierRows = SCHOOL_TIERS.map((t, i) => el('div',{class:'setting-row'},
     el('div',{class:'setting-name'}, t.name, el('span',{}, t.band)),
@@ -2800,9 +2826,7 @@ function openSettingsModal(){
       el('label',{}, 'Min order (units)', labelInputs[i].min)
     )
   ));
-  const body = el('div',{},
-    el('div',{class:'modal-h'},'Pricing settings'),
-    el('div',{class:'modal-desc'},'Update pricing here and it flows into every deck’s pricing slide and proposal. Changes save for the whole team.'),
+  return el('div',{},
     el('div',{class:'setting-sec'},'School plans (by enrollment)'),
     ...tierRows,
     el('div',{class:'setting-sec'},'Add-ons'),
@@ -2812,20 +2836,34 @@ function openSettingsModal(){
     ),
     el('div',{class:'setting-sec'},'QR label packs'),
     ...labelRows,
-    el('div',{class:'modal-foot split'},
-      el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ if(confirm('Reset all pricing to the original defaults?')){ savePricing(PRICING_DEFAULTS); closeModal(); renderDashboard(); } }},'Reset to defaults'),
-      el('div',{style:'display:flex;gap:10px'},
-        el('button',{class:'btn', onClick:closeModal},'Cancel'),
+    el('div',{class:'settings-actions'},
+      el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ if(confirm('Reset all pricing to the original defaults?')){ savePricing(PRICING_DEFAULTS); openSettingsPage(); } }},'Reset to defaults'),
+      el('div',{style:'display:flex;align-items:center;gap:16px'},
+        status,
         el('button',{class:'btn primary', onClick:save},'Save changes')
       )
     )
   );
-  openModal(body, { drawer: true });
+}
+function openSettingsPage(){
+  state.view = 'settings';
+  const body = document.getElementById('settings-body');
+  body.innerHTML = '';
+  body.appendChild(renderSettingsForm());
+  document.getElementById('settings-page').style.display = '';
+  window.scrollTo(0,0);
+}
+function backFromSettings(){
+  state.view = 'dashboard';
+  document.getElementById('settings-page').style.display = 'none';
+  renderDashboard();
+  window.scrollTo(0,0);
 }
 
 document.getElementById('new-deck-btn').addEventListener('click', openCreateModal);
 document.getElementById('team-btn').addEventListener('click', openTeamModal);
-document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+document.getElementById('settings-btn').addEventListener('click', openSettingsPage);
+document.getElementById('settings-back').addEventListener('click', backFromSettings);
 
 /* --- Open a deck (dashboard → presentation) --- */
 function openDeck(id){
