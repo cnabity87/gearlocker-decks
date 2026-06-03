@@ -1870,7 +1870,7 @@
   .btn.danger { color: var(--warn); border-color: transparent; }
   .btn.danger:hover { background: var(--warn-soft); border-color: var(--warn-border); }
 
-  .dash-main { max-width: 1080px; margin: 0 auto; padding: 44px 40px 80px; }
+  .dash-main { max-width: 1600px; margin: 0 auto; padding: 44px 40px 80px; }
   .dash-controls { display: flex; gap: 12px; align-items: center; margin: 0 0 22px; }
   .search-wrap { position: relative; flex: 1; max-width: 440px; }
   .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-4); pointer-events: none; }
@@ -1894,8 +1894,8 @@
     color: var(--ink-4); margin: 0 0 14px;
   }
 
-  .deck-list { display: flex; flex-direction: column; gap: 8px; }
-  .deck-cols { display: grid; grid-template-columns: minmax(0,2.4fr) 118px 118px minmax(0,1.2fr) auto; align-items: center; gap: 16px; }
+  .deck-list { display: flex; flex-direction: column; gap: 8px; overflow-x: auto; }
+  .deck-cols { display: grid; grid-template-columns: minmax(0,1.9fr) minmax(0,1.5fr) 112px 116px 108px minmax(0,1.1fr) auto; align-items: center; gap: 18px; min-width: 1120px; }
   .deck-thead { padding: 2px 22px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
   .deck-thead .th-actions { text-align: right; }
   .deck-row {
@@ -1906,9 +1906,11 @@
   .deck-cell { min-width: 0; font-size: 14px; color: var(--ink-2); }
   .deck-cell.num { font-variant-numeric: tabular-nums; }
   .deck-cell .muted { color: var(--ink-4); }
-  .deck-school { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .deck-school { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); min-width: 0; }
   .deck-school .school-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .deck-contact { font-size: 12px; color: var(--ink-4); font-weight: 500; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-contact-name { font-size: 13.5px; color: var(--ink-2); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-contact-email { font-size: 12px; color: var(--ink-4); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-status .sent-badge { margin-left: 0; }
   .deck-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
   .deck-empty {
     text-align: center; padding: 64px 24px; border: 1px dashed var(--border);
@@ -2076,13 +2078,9 @@
       <div class="dash-brand">
         <span class="brand-mark" id="brand-mark-intro"></span>
         <span class="dash-brand-sub">Presentations</span>
-        <span class="sync-badge badge-local" id="sync-badge">Saved on this computer</span>
       </div>
       <div class="dash-actions">
         <button class="user-chip" id="user-chip" type="button" style="display:none"></button>
-        <button class="btn ghost sm" id="refresh-btn" type="button" title="Refresh from team" style="display:none">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
         <button class="btn ghost" id="team-btn" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Team
@@ -2483,12 +2481,15 @@ function deckRow(deck, team){
   const contact = [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ');
   return el('div',{class:'deck-cols deck-row'},
     el('div',{class:'deck-cell'},
-      el('div',{class:'deck-school'},
-        el('span',{class:'school-name'}, deck.school),
-        deck.emailedAt ? el('span',{class:'sent-badge', title:'Emailed ' + fmtDate(deck.emailedAt)},
-          el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed') : null),
-      contact ? el('div',{class:'deck-contact'}, contact + (deck.contactEmail ? '  ·  ' + deck.contactEmail : '')) : (deck.contactEmail ? el('div',{class:'deck-contact'}, deck.contactEmail) : null)
-    ),
+      el('div',{class:'deck-school'}, el('span',{class:'school-name'}, deck.school))),
+    el('div',{class:'deck-cell'},
+      contact ? el('div',{class:'deck-contact-name'}, contact) : el('span',{class:'muted'},'—'),
+      deck.contactEmail ? el('div',{class:'deck-contact-email'}, deck.contactEmail) : null),
+    el('div',{class:'deck-cell deck-status'},
+      deck.emailedAt
+        ? el('span',{class:'sent-badge', title:'Emailed ' + fmtDate(deck.emailedAt)},
+            el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed')
+        : el('span',{class:'muted'},'—')),
     el('div',{class:'deck-cell num'}, fmtDate(deck.createdAt)),
     el('div',{class:'deck-cell num'}, deck.enrollment ? fmtNum(deck.enrollment) : el('span',{class:'muted'},'—')),
     el('div',{class:'deck-cell'}, sp ? sp.name : el('span',{class:'muted'},'Unassigned')),
@@ -2558,6 +2559,8 @@ function renderDashboard(){
   const pageRows = rows.slice(start, start + DECKS_PER_PAGE);
   list.appendChild(el('div',{class:'deck-cols deck-thead'},
     el('div',{}, 'School'),
+    el('div',{}, 'Contact'),
+    el('div',{}, 'Status'),
     el('div',{}, 'Created'),
     el('div',{}, 'Enrollment'),
     el('div',{}, 'Rep'),
@@ -3406,13 +3409,8 @@ async function initDashboard(){
   }
   renderDashboard();
 }
-document.getElementById('refresh-btn').addEventListener('click', async () => {
-  if (!cloudOn()) return;
-  setSyncBadge('syncing');
-  try { await refreshFromCloud(); setSyncBadge('online'); } catch(e){ setSyncBadge('offline'); }
-  renderDashboard();
-});
-// when returning to the tab, pull any decks teammates created
+// (Manual "refresh" button + sync badge removed — decks save to the shared cloud on
+//  every change and auto-pull on load and whenever you return to the tab.)
 window.addEventListener('focus', () => {
   if (cloudOn() && state.view === 'dashboard') {
     refreshFromCloud().then(() => { if (state.view === 'dashboard') renderDashboard(); }).catch(()=>{});
