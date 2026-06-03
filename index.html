@@ -1948,6 +1948,52 @@
   .settings-tab { font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-4); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 16px; margin-bottom: -1px; cursor: pointer; transition: color .15s var(--easing), border-color .15s var(--easing); }
   .settings-tab:hover { color: var(--ink-2); }
   .settings-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .lead-main { max-width: 1080px; margin: 0 auto; padding: 36px 40px 100px; }
+  .lead-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .lead-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 4px; }
+  .lead-sub { font-size: 14px; color: var(--ink-4); }
+  .lead-head-right { display: flex; align-items: center; gap: 10px; }
+  .lead-stage { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); cursor: pointer; }
+  .lead-grid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  .lead-left { display: flex; flex-direction: column; gap: 14px; }
+  .lead-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .lead-card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; }
+  .lead-card-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin-bottom: 12px; }
+  .lead-info-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; font-size: 13.5px; border-top: 1px solid var(--border); }
+  .lead-info-row:first-of-type { border-top: none; padding-top: 0; }
+  .lead-info-k { color: var(--ink-4); font-weight: 600; flex-shrink: 0; }
+  .lead-info-v { color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lead-link-a { color: var(--accent); text-decoration: none; }
+  .lead-amt-wrap { display: inline-flex; align-items: center; gap: 2px; }
+  .lead-amt-$ { color: var(--ink-3); font-size: 13px; }
+  .lead-amt { width: 90px; box-sizing: border-box; font: inherit; font-size: 14px; font-weight: 600; padding: 5px 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: right; }
+  .lead-amt-yr { color: var(--ink-4); font-size: 12px; }
+  .lead-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lead-rec-text { font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+  .lead-tasks { display: flex; flex-direction: column; }
+  .lead-task { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); }
+  .lead-task:first-child { border-top: none; }
+  .lead-task-cb { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink); cursor: pointer; }
+  .lead-task.done .lead-task-cb { color: var(--ink-4); text-decoration: line-through; }
+  .lead-task-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .lead-task-due { font-size: 12px; color: var(--ink-4); font-weight: 600; }
+  .lead-task-due.overdue { color: #c62b25; }
+  .lead-task-x { border: none; background: none; color: var(--ink-4); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+  .lead-task-x:hover { color: #c62b25; }
+  .lead-task-add { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .lead-task-input { flex: 1; font: inherit; font-size: 13.5px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .lead-task-date { font: inherit; font-size: 13px; padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-3); }
+  .lead-tl { display: flex; flex-direction: column; }
+  .lead-tl-row { display: flex; gap: 12px; padding: 11px 0; border-top: 1px solid var(--border); }
+  .lead-tl-row:first-child { border-top: none; }
+  .lead-tl-row.clickable { cursor: pointer; }
+  .lead-tl-row.clickable:hover .lead-tl-title { color: var(--accent); }
+  .lead-tl-icon { color: var(--ink-3); flex-shrink: 0; margin-top: 1px; }
+  .lead-tl-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .lead-tl-sub { font-size: 12.5px; color: var(--ink-4); margin-top: 2px; }
+  .lead-empty { font-size: 13.5px; color: var(--ink-4); padding: 6px 0; }
+  .school-name.lead-link { cursor: pointer; }
+  .school-name.lead-link:hover { color: var(--accent); }
   .pl-main { max-width: 1180px; margin: 0 auto; padding: 40px 40px 100px; }
   .pl-headrow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
   .pl-totals { display: flex; gap: 22px; font-size: 13px; color: var(--ink-4); }
@@ -2377,6 +2423,23 @@
     <div class="pl-main"><div id="pipeline-body"></div></div>
   </div>
 
+  <!-- Lead detail page -->
+  <div class="dash" id="lead-page" style="display:none; z-index:31;">
+    <div class="dash-top">
+      <div class="dash-brand">
+        <span class="brand-mark" id="brand-mark-lead"></span>
+        <span class="dash-brand-sub">Lead</span>
+      </div>
+      <div class="dash-actions">
+        <button class="btn ghost" id="lead-back" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Back
+        </button>
+      </div>
+    </div>
+    <div class="lead-main"><div id="lead-body"></div></div>
+  </div>
+
   <!-- Modals (create deck / manage team) -->
   <div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal"></div></div>
 
@@ -2427,7 +2490,7 @@ const LOGO_IMG_DARK  = '<img src="' + LOGO_DATA + '" alt="GearLocker" />';
 const LOGO_IMG_WHITE = '<img src="' + LOGO_DATA + '" alt="GearLocker" style="filter:brightness(0) invert(1)" />';
 /* Legacy alias — anything that historically used LOGO_SVG gets the dark img. */
 const LOGO_SVG = LOGO_IMG_DARK;
-['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis','brand-mark-leaderboard','brand-mark-pipeline'].forEach(id => {
+['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis','brand-mark-leaderboard','brand-mark-pipeline','brand-mark-lead'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = LOGO_IMG_DARK;
 });
@@ -2892,7 +2955,7 @@ function deckRow(deck, team){
   const contact = [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ');
   return el('div',{class:'deck-cols deck-row'},
     el('div',{class:'deck-cell'},
-      el('div',{class:'deck-school'}, el('span',{class:'school-name'}, deck.school))),
+      el('div',{class:'deck-school'}, el('span',{class:'school-name lead-link', onClick:()=>openLead(deck, 'dashboard')}, deck.school))),
     el('div',{class:'deck-cell'},
       contact ? el('div',{class:'deck-contact-name'}, contact) : el('span',{class:'muted'},'—'),
       deck.contactEmail ? el('div',{class:'deck-contact-email'}, deck.contactEmail) : null),
@@ -3538,7 +3601,7 @@ function renderPipeline(){
     mover.addEventListener('change', () => { const cur = DB.decks.find(x=>x.id===d.id)||d; upsertDeck(Object.assign({}, cur, { stage: mover.value, updatedAt: new Date().toISOString() })); renderPipeline(); });
     const lt = lastTouchDate(d);
     list.appendChild(el('div',{class:'pl-row'},
-      el('div',{class:'pl-deal', onClick:()=>openEditModal(d)},
+      el('div',{class:'pl-deal', onClick:()=>openLead(d, 'pipeline')},
         el('div',{class:'pl-school'}, d.school),
         el('div',{class:'pl-contact'}, contact || d.contactEmail || '—')),
       el('div',{class:'pl-cell'}, sp ? sp.name : el('span',{class:'muted'},'—')),
@@ -3553,6 +3616,154 @@ function openPipeline(){ state.view='pipeline'; renderPipeline(); document.getEl
 function backFromPipeline(){ state.view='dashboard'; document.getElementById('pipeline-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
 document.getElementById('pipeline-btn').addEventListener('click', openPipeline);
 document.getElementById('pipeline-back').addEventListener('click', backFromPipeline);
+
+/* ---------- Lead detail (full account record) ---------- */
+const TL_ICON = {
+  plus:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  check:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+};
+function deckTasks(deck){ return Array.isArray(deck.tasks) ? deck.tasks : []; }
+function saveDeckPatch(deck, patch){ const cur = DB.decks.find(x=>x.id===deck.id)||deck; const u = Object.assign({}, cur, patch, { updatedAt:new Date().toISOString() }); upsertDeck(u); return u; }
+function addTask(deck, text, due){ const tasks = deckTasks(deck).slice(); tasks.push({ id:uid('t_'), text, due:due||'', done:false, createdAt:new Date().toISOString() }); return saveDeckPatch(deck, { tasks }); }
+function toggleTask(deck, id){ const tasks = deckTasks(deck).map(t => t.id===id ? Object.assign({}, t, { done:!t.done, doneAt: !t.done ? new Date().toISOString() : null }) : t); return saveDeckPatch(deck, { tasks }); }
+function deleteTask(deck, id){ return saveDeckPatch(deck, { tasks: deckTasks(deck).filter(t=>t.id!==id) }); }
+function infoRow(k, v){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, k), el('span',{class:'lead-info-v'}, v)); }
+function leadTimeline(deck, meetings){
+  const ev = [];
+  if (deck.createdAt) ev.push({ date:deck.createdAt, icon:TL_ICON.plus, title:'Lead created', sub: deck.leadSource || '' });
+  const g = deck.callGrade;
+  if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Sales call', sub: (g.grade ? ('Graded ' + g.grade + ' · ' + g.overall + '/100') : ''), onClick:()=>openAnalysisDrawer(deck) });
+  if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'' });
+  if (deck.followup && deck.followup.scheduled && deck.followup.startTime) ev.push({ date:deck.followup.startTime, icon:TL_ICON.cal, title:(new Date(deck.followup.startTime).getTime() > Date.now() ? 'Follow-up booked' : 'Follow-up'), sub: deck.followup.title || '' });
+  deckTasks(deck).filter(t=>t.done && t.doneAt).forEach(t => ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task done — ' + t.text, sub:'' }));
+  (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
+  ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
+  return ev;
+}
+function timelineRow(e){
+  return el('div',{class:'lead-tl-row' + (e.onClick?' clickable':''), onClick: e.onClick || null},
+    el('span',{class:'lead-tl-icon', html:e.icon}),
+    el('div',{class:'lead-tl-body'},
+      el('div',{class:'lead-tl-title'}, e.title),
+      el('div',{class:'lead-tl-sub'}, [e.sub, e.date ? fmtDay(e.date) : ''].filter(Boolean).join('  ·  ')))
+  );
+}
+async function fetchMeetingsAll(deck){
+  if (!GOOGLE_CLIENT_ID || !AUTH || !AUTH.token || Date.now() >= AUTH.expires) return [];
+  const sp = getTeam().find(p=>p.id===deck.salespersonId);
+  const calId = (sp && sp.email) || AUTH.email; const contact = (deck.contactEmail||'').trim();
+  if (!calId || !contact) return [];
+  const now = Date.now();
+  const u = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calId) + '/events?singleEvents=true&orderBy=startTime&maxResults=25&timeMin=' + encodeURIComponent(new Date(now-1000*60*60*24*180).toISOString()) + '&timeMax=' + encodeURIComponent(new Date(now+1000*60*60*24*120).toISOString()) + '&q=' + encodeURIComponent(contact);
+  try {
+    const r = await fetch(u, { headers:{ Authorization:'Bearer ' + AUTH.token } });
+    if (!r.ok) return [];
+    const data = await r.json(); const w = contact.toLowerCase();
+    return (data.items||[]).filter(e => e.status!=='cancelled' && e.start && (e.start.dateTime||e.start.date))
+      .filter(e => (e.attendees||[]).some(a=>String(a.email||'').toLowerCase()===w) || String((e.summary||'')+(e.description||'')).toLowerCase().includes(w))
+      .map(e => ({ start: e.start.dateTime||e.start.date, title: e.summary || 'Meeting' }));
+  } catch(e){ return []; }
+}
+function suggestForLead(deck, box, statusEl){
+  if (!SUPABASE_URL){ statusEl.textContent = 'Cloud isn’t configured.'; return; }
+  statusEl.textContent = 'Reading the deal and recommending the next step…';
+  const cur = DB.decks.find(d=>d.id===deck.id) || deck; const g = cur.callGrade || {};
+  const sp = getTeam().find(p=>p.id===cur.salespersonId);
+  fetch(SUPABASE_URL + '/functions/v1/recommend-action', {
+    method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({ school:cur.school, contactFirst:cur.contactFirst||'', rep: sp?{name:sp.name}:null, daysQuiet:daysQuiet(cur), lastTouch:lastTouchDate(cur), followup: cur.followup?{scheduled:cur.followup.scheduled,startTime:cur.followup.startTime}:null, emailed:!!cur.emailedAt, callSummary:g.summary||'', callHeadline:g.headline||'', callImprovements:g.improvements||[], grade:g.grade||'' })
+  }).then(async r => {
+    const data = await r.json().catch(()=>({error:'Unexpected response.'}));
+    if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+    box.querySelector('.lead-rec-body').innerHTML = '';
+    box.querySelector('.lead-rec-body').appendChild(el('div',{class:'lead-rec-text'}, data.recommendation || ''));
+    box.querySelector('.lead-rec-body').appendChild(el('button',{class:'btn sm primary', style:'margin-top:12px', onClick:()=>openEmailModal(deck)}, 'Draft the email →'));
+  }).catch(e => { statusEl.textContent = 'Couldn’t suggest: ' + (e&&e.message?e.message:e); });
+}
+function renderLeadTasks(deck){
+  const card = el('div',{class:'lead-card'});
+  card.appendChild(el('div',{class:'lead-card-h'},'Tasks'));
+  const list = el('div',{class:'lead-tasks'});
+  const tasks = deckTasks(deck).slice().sort((a,b)=>{ if (a.done!==b.done) return a.done?1:-1; return String(a.due||'9999').localeCompare(String(b.due||'9999')); });
+  if (!tasks.length) list.appendChild(el('div',{class:'lead-empty'},'No tasks yet.'));
+  tasks.forEach(t => {
+    const cb = el('input',{type:'checkbox'}); cb.checked = t.done;
+    cb.addEventListener('change', ()=>{ toggleTask(deck, t.id); renderLead(deck); });
+    const overdue = t.due && !t.done && parseDay(t.due).getTime() < parseDay(new Date().toISOString()).getTime();
+    list.appendChild(el('div',{class:'lead-task' + (t.done?' done':'')},
+      el('label',{class:'lead-task-cb'}, cb, el('span',{}, t.text)),
+      el('div',{class:'lead-task-right'},
+        t.due ? el('span',{class:'lead-task-due' + (overdue?' overdue':'')}, fmtDay(t.due)) : null,
+        el('button',{class:'lead-task-x', type:'button', title:'Delete', onClick:()=>{ deleteTask(deck, t.id); renderLead(deck); }}, '✕'))
+    ));
+  });
+  card.appendChild(list);
+  const txt = el('input',{type:'text', placeholder:'Add a task…', class:'lead-task-input'});
+  const due = el('input',{type:'date', class:'lead-task-date'});
+  const add = ()=>{ const v = txt.value.trim(); if (!v) return; addTask(deck, v, due.value); renderLead(deck); };
+  txt.addEventListener('keydown', e=>{ if (e.key==='Enter') add(); });
+  card.appendChild(el('div',{class:'lead-task-add'}, txt, due, el('button',{class:'btn sm primary', type:'button', onClick:add},'Add')));
+  return card;
+}
+function renderLead(deck){
+  deck = DB.decks.find(d=>d.id===deck.id) || deck;
+  const body = document.getElementById('lead-body'); body.innerHTML = '';
+  const sp = getTeam().find(p=>p.id===deck.salespersonId);
+  const contact = [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ');
+  const stageSel = el('select',{class:'lead-stage'}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
+  stageSel.value = dealStage(deck);
+  stageSel.addEventListener('change', ()=>{ saveDeckPatch(deck, { stage: stageSel.value }); renderLead(deck); });
+  body.appendChild(el('div',{class:'lead-headrow'},
+    el('div',{}, el('h1',{class:'lead-title'}, deck.school), el('div',{class:'lead-sub'}, contact || deck.contactEmail || '')),
+    el('div',{class:'lead-head-right'}, el('span',{class:'stage-chip stage-' + dealStage(deck)}, stageMeta(dealStage(deck)).short), stageSel)
+  ));
+  const grid = el('div',{class:'lead-grid'});
+  const amtInput = el('input',{type:'number', min:'0', step:'100', value:(deck.amount!=null&&deck.amount!=='')?deck.amount:'', placeholder:String(dealAmount(deck)), class:'lead-amt'});
+  amtInput.addEventListener('change', ()=>{ saveDeckPatch(deck, { amount: amtInput.value.trim() }); });
+  const left = el('div',{class:'lead-left'},
+    el('div',{class:'lead-card'},
+      el('div',{class:'lead-card-h'},'Deal'),
+      infoRow('Owner', sp ? sp.name : 'Unassigned'),
+      el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'},'Forecast'), el('div',{class:'lead-amt-wrap'}, el('span',{class:'lead-amt-$'},'$'), amtInput, el('span',{class:'lead-amt-yr'},'/yr'))),
+      infoRow('Source', deck.leadSource || '—'),
+      infoRow('Created', deck.createdAt ? fmtDay(deck.createdAt) : '—')
+    ),
+    el('div',{class:'lead-card'},
+      el('div',{class:'lead-card-h'},'Contact'),
+      infoRow('Name', contact || '—'),
+      infoRow('Email', deck.contactEmail ? el('a',{href:'mailto:'+deck.contactEmail, class:'lead-link-a'}, deck.contactEmail) : '—'),
+      infoRow('Phone', deck.contactPhone ? el('a',{href:'tel:'+deck.contactPhone, class:'lead-link-a'}, deck.contactPhone) : '—')
+    ),
+    el('div',{class:'lead-actions'},
+      el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},'Open deck'),
+      el('button',{class:'btn sm', onClick:()=>openEmailModal(deck)},'Email'),
+      el('button',{class:'btn sm', onClick:(e)=>generateProposal(deck, e.currentTarget)},'Proposal'),
+      el('button',{class:'btn sm', onClick:()=>openAnalysisDrawer(deck)}, deck.callGrade ? 'Call grade' : 'Analyze call')
+    )
+  );
+  grid.appendChild(left);
+  const recBox = el('div',{class:'lead-card'});
+  recBox.appendChild(el('div',{class:'lead-card-h'},'AI recommended next step'));
+  const recStatus = el('div',{class:'email-status'},'');
+  recBox.appendChild(el('div',{class:'lead-rec-body'}, el('button',{class:'btn sm', type:'button', onClick:()=>suggestForLead(deck, recBox, recStatus)}, '✨ Suggest next step'), recStatus));
+  const tlCard = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Activity'));
+  const tlList = el('div',{class:'lead-tl'});
+  leadTimeline(deck, []).forEach(e => tlList.appendChild(timelineRow(e)));
+  tlCard.appendChild(tlList);
+  grid.appendChild(el('div',{class:'lead-right'}, recBox, renderLeadTasks(deck), tlCard));
+  body.appendChild(grid);
+  fetchMeetingsAll(deck).then(meetings => {
+    if (meetings && meetings.length && state.view==='lead' && state.leadId===deck.id){
+      tlList.innerHTML=''; leadTimeline(deck, meetings).forEach(e => tlList.appendChild(timelineRow(e)));
+    }
+  }).catch(()=>{});
+}
+function openLead(deck, returnView){ state.leadReturn = returnView || (state.view==='pipeline'?'pipeline':'dashboard'); state.view='lead'; state.leadId=deck.id; renderLead(deck); document.getElementById('lead-page').style.display=''; window.scrollTo(0,0); }
+function backFromLead(){ document.getElementById('lead-page').style.display='none'; const rv = state.leadReturn || 'dashboard'; state.view = rv; if (rv==='pipeline') renderPipeline(); else renderDashboard(); window.scrollTo(0,0); }
+document.getElementById('lead-back').addEventListener('click', backFromLead);
 
 /* ---------- Daily digest: "what needs attention today" ---------- */
 const CHART_MINI = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>';
