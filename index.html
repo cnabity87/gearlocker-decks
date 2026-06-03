@@ -1948,6 +1948,18 @@
   .settings-tab { font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-4); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 16px; margin-bottom: -1px; cursor: pointer; transition: color .15s var(--easing), border-color .15s var(--easing); }
   .settings-tab:hover { color: var(--ink-2); }
   .settings-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .lb-main { max-width: 1000px; margin: 0 auto; padding: 40px 40px 100px; }
+  .lb-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
+  .lb-sub { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; line-height: 1.5; max-width: 720px; }
+  .lb-table { display: flex; flex-direction: column; gap: 6px; }
+  .lb-row { display: grid; grid-template-columns: minmax(0,1.6fr) 70px 1.3fr 1.4fr 1fr 1.2fr; align-items: center; gap: 14px; padding: 14px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .lb-head { background: none; border: none; padding: 0 18px 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
+  .lb-rep { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .lb-rep.muted { color: var(--ink-4); font-weight: 600; }
+  .lb-num { font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .lb-grade { font-weight: 800; }
+  .lb-sub2 { color: var(--ink-4); font-size: 12px; }
+  .lb-num.lb-warn { color: #c62b25; font-weight: 700; }
   .auto-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--border); }
   .auto-h { font-size: 15px; font-weight: 700; color: var(--ink); }
   .auto-p { font-size: 13px; color: var(--ink-3); line-height: 1.5; margin-top: 4px; max-width: 580px; }
@@ -2198,6 +2210,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
           <span class="fu-btn-label">Follow-ups</span>
         </button>
+        <button class="btn ghost" id="leaderboard-btn" type="button" title="Team performance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11V3H8v6H2v12h20V11z"/></svg>
+          Performance
+        </button>
         <button class="btn ghost" id="settings-btn" type="button" title="Pricing, rubric &amp; team">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Settings
@@ -2255,6 +2271,22 @@
     </div>
   </div>
 
+  <!-- Leaderboard / team performance page -->
+  <div class="dash" id="leaderboard-page" style="display:none; z-index:31;">
+    <div class="dash-top">
+      <div class="dash-brand">
+        <span class="brand-mark" id="brand-mark-leaderboard"></span>
+        <span class="dash-brand-sub">Team performance</span>
+      </div>
+      <div class="dash-actions">
+        <button class="btn ghost" id="leaderboard-back" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Back to decks
+        </button>
+      </div>
+    </div>
+    <div class="lb-main"><div id="leaderboard-body"></div></div>
+  </div>
 
   <!-- Modals (create deck / manage team) -->
   <div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal"></div></div>
@@ -2306,7 +2338,7 @@ const LOGO_IMG_DARK  = '<img src="' + LOGO_DATA + '" alt="GearLocker" />';
 const LOGO_IMG_WHITE = '<img src="' + LOGO_DATA + '" alt="GearLocker" style="filter:brightness(0) invert(1)" />';
 /* Legacy alias — anything that historically used LOGO_SVG gets the dark img. */
 const LOGO_SVG = LOGO_IMG_DARK;
-['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis'].forEach(id => {
+['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis','brand-mark-leaderboard'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = LOGO_IMG_DARK;
 });
@@ -3197,6 +3229,50 @@ function backFromSettings(){
   renderDashboard();
   window.scrollTo(0,0);
 }
+
+/* ---------- Team performance / leaderboard ---------- */
+function letterGrade(n){ if(n==null)return'—'; if(n>=93)return'A';if(n>=90)return'A-';if(n>=87)return'B+';if(n>=83)return'B';if(n>=80)return'B-';if(n>=77)return'C+';if(n>=73)return'C';if(n>=70)return'C-';if(n>=67)return'D+';if(n>=60)return'D';return'F'; }
+function repStats(decks){
+  const graded = decks.filter(d => d.callGrade && typeof d.callGrade.overall === 'number');
+  const avg = graded.length ? Math.round(graded.reduce((a,d)=>a+d.callGrade.overall,0)/graded.length) : null;
+  return { count: decks.length, graded: graded.length, avg,
+    booked: decks.filter(hasUpcomingFollowup).length,
+    nudge: decks.filter(dealNeedsNudge).length,
+    emailed: decks.filter(d=>d.emailedAt).length };
+}
+function renderLeaderboard(){
+  const body = document.getElementById('leaderboard-body');
+  body.innerHTML = '';
+  const team = getTeam(), decks = getDecks();
+  body.appendChild(el('h1',{class:'lb-title'},'Team performance'));
+  body.appendChild(el('p',{class:'lb-sub'},'Per-rep snapshot across all decks. Avg grade is the mean of analyzed calls (count in parentheses); follow-ups = deals with an upcoming meeting booked; nudges = deals with no next step and no recent activity.'));
+  const groups = team.map(p => ({ name:p.name, decks: decks.filter(d=>d.salespersonId===p.id) }));
+  const unassigned = decks.filter(d => !team.find(p=>p.id===d.salespersonId));
+  if (unassigned.length) groups.push({ name:'Unassigned', decks: unassigned, muted:true });
+  groups.sort((a,b)=> b.decks.length - a.decks.length);
+  const table = el('div',{class:'lb-table'},
+    el('div',{class:'lb-row lb-head'}, el('div',{},'Rep'), el('div',{},'Deals'), el('div',{},'Avg call grade'), el('div',{},'Follow-ups booked'), el('div',{},'Needs nudge'), el('div',{},'Emailed'))
+  );
+  if (!groups.length || !decks.length){
+    table.appendChild(el('div',{class:'lb-row'}, el('div',{class:'muted', style:'grid-column:1/-1'},'No decks yet.')));
+  }
+  groups.forEach(g => {
+    const s = repStats(g.decks);
+    table.appendChild(el('div',{class:'lb-row'},
+      el('div',{class:'lb-rep' + (g.muted?' muted':'')}, g.name),
+      el('div',{class:'lb-num'}, String(s.count)),
+      el('div',{class:'lb-num'}, s.avg!=null ? el('span',{class:'lb-grade', style:'color:'+gradeColor(s.avg)}, letterGrade(s.avg)+' · '+s.avg) : el('span',{class:'muted'},'—'), s.graded ? el('span',{class:'lb-sub2'}, ' ('+s.graded+')') : null),
+      el('div',{class:'lb-num'}, s.count ? (s.booked + ' · ' + Math.round(100*s.booked/s.count) + '%') : '—'),
+      el('div',{class:'lb-num' + (s.nudge?' lb-warn':'')}, String(s.nudge)),
+      el('div',{class:'lb-num'}, s.count ? (s.emailed + ' · ' + Math.round(100*s.emailed/s.count) + '%') : '—')
+    ));
+  });
+  body.appendChild(table);
+}
+function openLeaderboard(){ state.view='leaderboard'; renderLeaderboard(); document.getElementById('leaderboard-page').style.display=''; window.scrollTo(0,0); }
+function backFromLeaderboard(){ state.view='dashboard'; document.getElementById('leaderboard-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
+document.getElementById('leaderboard-btn').addEventListener('click', openLeaderboard);
+document.getElementById('leaderboard-back').addEventListener('click', backFromLeaderboard);
 
 /* ---------- AI call analysis (Fathom transcript + summary → graded scorecard) ---------- */
 function gradeColor(n){ return n >= 80 ? '#1f9d55' : n >= 60 ? '#c98a00' : '#c62b25'; }
