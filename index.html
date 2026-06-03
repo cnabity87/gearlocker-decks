@@ -1913,6 +1913,7 @@
   .deck-status .sent-badge { margin-left: 0; }
   .deck-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
   .deck-row-actions .btn { white-space: nowrap; flex-shrink: 0; }
+  .deck-email-btn { min-width: 104px; justify-content: center; }
   .deck-empty {
     text-align: center; padding: 64px 24px; border: 1px dashed var(--border);
     border-radius: var(--radius-md); background: var(--paper);
@@ -2498,8 +2499,8 @@ function deckRow(deck, team){
       el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
       deck.emailedAt
-        ? el('button',{class:'btn sm is-sent', 'data-tip':'Emailed — click to send again', onClick:()=>openEmailModal(deck)}, 'Emailed')
-        : el('button',{class:'btn sm', 'data-tip':'Email the deck + proposal', onClick:()=>openEmailModal(deck)},
+        ? el('button',{class:'btn sm is-sent deck-email-btn', 'data-tip':'Emailed — click to send again', onClick:()=>openEmailModal(deck)}, 'Emailed')
+        : el('button',{class:'btn sm deck-email-btn', 'data-tip':'Email the deck + proposal', onClick:()=>openEmailModal(deck)},
             el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>'}), 'Email'),
       el('button',{class:'btn ghost sm', 'data-tip':'Download deck PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'})),
