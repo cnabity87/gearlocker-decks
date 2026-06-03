@@ -2030,6 +2030,15 @@
   .tl-meta { font-size: 12.5px; color: var(--ink-4); margin-top: 3px; }
   .tl-content .lead-tl-email-body { padding: 10px 0 2px 0; margin-top: 6px; border-top: 1px solid var(--border); }
   .lead-timeline.mini .tl-item { padding-bottom: 15px; }
+  .lead-docs { display: flex; flex-direction: column; gap: 10px; }
+  .doc-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
+  .doc-ic { width: 42px; height: 42px; border-radius: 10px; background: var(--wash, #f4f3ef); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .doc-ic svg { width: 20px; height: 20px; }
+  .doc-body { flex: 1 1 auto; min-width: 0; }
+  .doc-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .doc-sub { font-size: 12.5px; color: var(--ink-4); margin-top: 2px; }
+  .doc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .lead-docs-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
   .lead-empty { font-size: 13.5px; color: var(--ink-4); padding: 6px 0; }
   .school-name.lead-link { cursor: pointer; }
   .school-name.lead-link:hover { color: var(--accent); }
@@ -4054,7 +4063,7 @@ function renderLead(deck){
   // sub-tabs
   const openN = deckTasks(deck).filter(t=>!t.done).length;
   const tabNav = el('div',{class:'lead-tabs'});
-  [['overview','Overview'],['timeline','Timeline'],['tasks','Tasks']].forEach(([k,l]) =>
+  [['overview','Overview'],['timeline','Timeline'],['documents','Documents'],['tasks','Tasks']].forEach(([k,l]) =>
     tabNav.appendChild(el('button',{class:'lead-tab'+(leadTab===k?' active':''), type:'button', onClick:()=>{ state.leadTab=k; renderLead(deck); }},
       l, (k==='tasks'&&openN)?el('span',{class:'lead-tab-badge'},String(openN)):null)));
   body.appendChild(tabNav);
@@ -4064,6 +4073,8 @@ function renderLead(deck){
     const card = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Activity timeline'));
     const tl = el('div',{class:'lead-timeline'}); card.appendChild(tl); content.appendChild(card);
     fillTimeline(tl, deck, { expandable:true });
+  } else if (leadTab==='documents'){
+    renderLeadDocuments(deck, content);
   } else if (leadTab==='tasks'){
     content.appendChild(renderLeadTasks(deck));
   } else {
@@ -4109,6 +4120,42 @@ function renderLeadOverview(deck, content, sp, contact){
   const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
   fillTimeline(mini, deck, { limit:5, expandable:false });
   content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, recBox, actCard)));
+}
+function docRow(o){
+  const actions = el('div',{class:'doc-actions'}, ...o.actions.map(a =>
+    el('button',{class:'btn sm'+(a.primary?' primary':''), type:'button', onClick:a.onClick}, a.label)));
+  return el('div',{class:'doc-row'},
+    el('span',{class:'doc-ic', html:o.icon}),
+    el('div',{class:'doc-body'}, el('div',{class:'doc-title'}, o.title), el('div',{class:'doc-sub'}, o.sub)),
+    actions);
+}
+function renderLeadDocuments(deck, content){
+  const DECK_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m12 16-3 5"/><path d="m12 16 3 5"/></svg>';
+  const DOC_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>';
+  const card = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Documents'));
+  const list = el('div',{class:'lead-docs'});
+  list.appendChild(docRow({
+    icon: DECK_IC,
+    title: deck.school + ' — Sales presentation',
+    sub: 'Interactive slide deck, tailored to this school',
+    actions: [
+      { label:'Open', primary:true, onClick:()=>openDeck(deck.id) },
+      { label:'Download PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget) }
+    ]
+  }));
+  list.appendChild(docRow({
+    icon: DOC_IC,
+    title: deck.school + ' — Proposal',
+    sub: 'PDF proposal with pricing and 30-day rollout plan',
+    actions: [
+      { label:'Generate PDF', primary:true, onClick:(e)=>generateProposal(deck, e.currentTarget) }
+    ]
+  }));
+  card.appendChild(list);
+  card.appendChild(el('div',{class:'lead-docs-foot'},
+    el('span',{class:'lead-tl-sub'}, deck.emailedAt ? ('Last emailed ' + fmtDay(deck.emailedAt)) : 'Not emailed yet'),
+    el('button',{class:'btn sm', type:'button', onClick:()=>openEmailModal(deck)}, deck.emailedAt ? 'Resend deck + proposal' : 'Email deck + proposal')));
+  content.appendChild(card);
 }
 function fillTimeline(container, deck, opts){
   opts = opts || {};
