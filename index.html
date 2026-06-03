@@ -1999,6 +1999,37 @@
   .lead-tl-caret { color: var(--ink-4); font-size: 11px; flex-shrink: 0; transition: transform .15s; margin-left: 6px; }
   .lead-tl-emailhead.open .lead-tl-caret { transform: rotate(180deg); }
   .lead-tl-email-body { font-size: 13px; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; line-height: 1.55; padding: 4px 0 14px 32px; max-height: 320px; overflow: auto; }
+  /* ---- redesigned lead record view ---- */
+  .lead-back-link { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; color: var(--ink-4); font: inherit; font-size: 13px; font-weight: 600; padding: 0; margin-bottom: 18px; }
+  .lead-back-link:hover { color: var(--ink); }
+  .lead-back-ic { font-size: 18px; line-height: 1; }
+  .lead-head-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .lead-avatar { width: 46px; height: 46px; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .lead-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: 22px 0 26px; }
+  .lead-tab { position: relative; background: none; border: none; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-4); padding: 10px 15px; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 7px; }
+  .lead-tab:hover { color: var(--ink-2); }
+  .lead-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .lead-tab-badge { background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; }
+  .lead-card-h-row { display: flex; align-items: center; justify-content: space-between; }
+  .lead-viewall { background: none; border: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: var(--accent); padding: 0; text-transform: none; letter-spacing: 0; }
+  .lead-viewall:hover { text-decoration: underline; }
+  .lead-timeline { position: relative; padding-top: 2px; }
+  .tl-item { position: relative; padding: 0 0 22px 42px; }
+  .tl-item::before { content: ''; position: absolute; left: 14px; top: 6px; width: 2px; height: 100%; background: var(--border); }
+  .tl-item:last-child::before { display: none; }
+  .tl-node { position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
+  .tl-node svg { width: 14px; height: 14px; }
+  .tl-content { padding-top: 5px; min-width: 0; }
+  .tl-headline { display: flex; align-items: flex-start; gap: 8px; }
+  .tl-headline.clickable { cursor: pointer; }
+  .tl-headline.clickable:hover .tl-title { color: var(--accent); }
+  .tl-title { font-size: 14px; font-weight: 600; color: var(--ink); flex: 1 1 auto; line-height: 1.35; min-width: 0; }
+  .tl-date { font-size: 12px; color: var(--ink-4); white-space: nowrap; flex: none; padding-top: 1px; }
+  .tl-caret { font-size: 11px; color: var(--ink-4); flex: none; padding-top: 3px; transition: transform .15s; }
+  .tl-headline.open .tl-caret { transform: rotate(180deg); }
+  .tl-meta { font-size: 12.5px; color: var(--ink-4); margin-top: 3px; }
+  .tl-content .lead-tl-email-body { padding: 10px 0 2px 0; margin-top: 6px; border-top: 1px solid var(--border); }
+  .lead-timeline.mini .tl-item { padding-bottom: 15px; }
   .lead-empty { font-size: 13.5px; color: var(--ink-4); padding: 6px 0; }
   .school-name.lead-link { cursor: pointer; }
   .school-name.lead-link:hover { color: var(--accent); }
@@ -2475,18 +2506,7 @@
 
   <!-- Lead detail page -->
   <div class="dash" id="lead-page" style="display:none; z-index:31;">
-    <div class="dash-top">
-      <div class="dash-brand">
-        <span class="brand-mark" id="brand-mark-lead"></span>
-        <span class="dash-brand-sub">Lead</span>
-      </div>
-      <div class="dash-actions">
-        <button class="btn ghost" id="lead-back" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
-          Back
-        </button>
-      </div>
-    </div>
+    <div class="dash-top"></div>
     <div class="lead-main"><div id="lead-body"></div></div>
   </div>
 
@@ -4009,17 +4029,52 @@ function renderLeadTasks(deck){
 }
 function renderLead(deck){
   deck = DB.decks.find(d=>d.id===deck.id) || deck;
-  const body = document.getElementById('lead-body'); body.innerHTML = '';
+  state.leadId = deck.id;
+  const leadTab = state.leadTab || 'overview';
   const sp = getTeam().find(p=>p.id===deck.salespersonId);
   const contact = [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ');
+  // top section nav (so you can jump straight to other tabs from a lead)
+  const top = document.querySelector('#lead-page .dash-top');
+  if (top){ top.innerHTML=''; top.appendChild(buildNav(state.leadReturn||'leads')); }
+  const body = document.getElementById('lead-body'); body.innerHTML = '';
+  // back breadcrumb
+  const backLabel = (NAV_TABS.find(t=>t.key===(state.leadReturn||'leads'))||{label:'Leads'}).label;
+  body.appendChild(el('button',{class:'lead-back-link', type:'button', onClick:backFromLead},
+    el('span',{class:'lead-back-ic'}, '‹'), 'Back to ' + backLabel));
+  // header
   const stageSel = el('select',{class:'lead-stage'}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
   stageSel.value = dealStage(deck);
   stageSel.addEventListener('change', ()=>{ setDeckStage(deck.id, stageSel.value); Object.assign(deck, DB.decks.find(x=>x.id===deck.id)||deck); renderLead(deck); });
   body.appendChild(el('div',{class:'lead-headrow'},
-    el('div',{}, el('h1',{class:'lead-title'}, deck.school), el('div',{class:'lead-sub'}, contact || deck.contactEmail || '')),
+    el('div',{class:'lead-head-l'},
+      el('div',{class:'lead-avatar'}, String(deck.school||'?').trim().slice(0,1).toUpperCase()),
+      el('div',{}, el('h1',{class:'lead-title'}, deck.school), el('div',{class:'lead-sub'}, contact || deck.contactEmail || ''))),
     el('div',{class:'lead-head-right'}, el('span',{class:'stage-chip stage-' + dealStage(deck)}, stageMeta(dealStage(deck)).short), stageSel)
   ));
-  const grid = el('div',{class:'lead-grid'});
+  // sub-tabs
+  const openN = deckTasks(deck).filter(t=>!t.done).length;
+  const tabNav = el('div',{class:'lead-tabs'});
+  [['overview','Overview'],['timeline','Timeline'],['tasks','Tasks']].forEach(([k,l]) =>
+    tabNav.appendChild(el('button',{class:'lead-tab'+(leadTab===k?' active':''), type:'button', onClick:()=>{ state.leadTab=k; renderLead(deck); }},
+      l, (k==='tasks'&&openN)?el('span',{class:'lead-tab-badge'},String(openN)):null)));
+  body.appendChild(tabNav);
+  // content per tab
+  const content = el('div',{class:'lead-content'}); body.appendChild(content);
+  if (leadTab==='timeline'){
+    const card = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Activity timeline'));
+    const tl = el('div',{class:'lead-timeline'}); card.appendChild(tl); content.appendChild(card);
+    fillTimeline(tl, deck, { expandable:true });
+  } else if (leadTab==='tasks'){
+    content.appendChild(renderLeadTasks(deck));
+  } else {
+    renderLeadOverview(deck, content, sp, contact);
+  }
+  // first-time background sync, then re-render to show matched email/calendar
+  if (AUTH && AUTH.gmail!==false && !GACTIVITY.syncedAt && !GACTIVITY.syncing){
+    syncGoogleActivity().then(()=>{ if (state.view==='lead' && state.leadId===deck.id) renderLead(deck); }).catch(()=>{});
+  }
+}
+function renderLeadOverview(deck, content, sp, contact){
   const amtInput = el('input',{type:'number', min:'0', step:'100', value:(deck.amount!=null&&deck.amount!=='')?deck.amount:'', placeholder:String(dealAmount(deck)), class:'lead-amt'});
   amtInput.addEventListener('change', ()=>{ saveDeckPatch(deck, { amount: amtInput.value.trim() }); });
   const left = el('div',{class:'lead-left'},
@@ -4028,6 +4083,7 @@ function renderLead(deck){
       infoRow('Owner', sp ? sp.name : 'Unassigned'),
       el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'},'Forecast'), el('div',{class:'lead-amt-wrap'}, el('span',{class:'lead-amt-$'},'$'), amtInput, el('span',{class:'lead-amt-yr'},'/yr'))),
       infoRow('Source', deck.leadSource || '—'),
+      infoRow('Stage', stageMeta(dealStage(deck)).label),
       infoRow('Created', deck.createdAt ? fmtDay(deck.createdAt) : '—')
     ),
     el('div',{class:'lead-card'},
@@ -4043,37 +4099,54 @@ function renderLead(deck){
       el('button',{class:'btn sm', onClick:()=>openAnalysisDrawer(deck)}, deck.callGrade ? 'Call grade' : 'Analyze call')
     )
   );
-  grid.appendChild(left);
   const recBox = el('div',{class:'lead-card'});
   recBox.appendChild(el('div',{class:'lead-card-h'},'AI recommended next step'));
   const recStatus = el('div',{class:'email-status'},'');
   recBox.appendChild(el('div',{class:'lead-rec-body'}, el('button',{class:'btn sm', type:'button', onClick:()=>suggestForLead(deck, recBox, recStatus)}, '✨ Suggest next step'), recStatus));
-  const tlCard = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Activity'));
-  const tlList = el('div',{class:'lead-tl'});
-  leadTimeline(deck, [], []).forEach(e => tlList.appendChild(timelineRow(e)));
-  tlCard.appendChild(tlList);
-  grid.appendChild(el('div',{class:'lead-right'}, recBox, renderLeadTasks(deck), tlCard));
-  body.appendChild(grid);
-  const paintTL = () => {
-    if (!(state.view==='lead' && state.leadId===deck.id)) return;
-    tlList.innerHTML='';
-    leadTimeline(deck, cachedMeetingsFor(deck), cachedEmailsFor(deck)).forEach(e => tlList.appendChild(timelineRow(e)));
+  const actCard = el('div',{class:'lead-card'},
+    el('div',{class:'lead-card-h lead-card-h-row'}, el('span',{},'Recent activity'),
+      el('button',{class:'lead-viewall', type:'button', onClick:()=>{ state.leadTab='timeline'; renderLead(deck); }},'View full timeline →')));
+  const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
+  fillTimeline(mini, deck, { limit:5, expandable:false });
+  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, recBox, actCard)));
+}
+function fillTimeline(container, deck, opts){
+  opts = opts || {};
+  container.innerHTML='';
+  let evs = leadTimeline(deck, cachedMeetingsFor(deck), cachedEmailsFor(deck));
+  if (opts.limit) evs = evs.slice(0, opts.limit);
+  if (!evs.length) container.appendChild(el('div',{class:'lead-empty', style:'padding:6px 0'}, 'No activity yet.'));
+  evs.forEach(e => container.appendChild(tlNode(e, opts)));
+  if (!opts.limit){
     if (AUTH && AUTH.gmail===false){
-      tlList.appendChild(el('div',{class:'lead-tl-connect'},
+      container.appendChild(el('div',{class:'lead-tl-connect'},
         el('span',{class:'lead-tl-sub'},'Connect Google once to sync email & calendar across every lead.'),
         el('button',{class:'btn ghost sm', type:'button', onClick:()=>openSettingsPage('google')},'Open settings')));
     } else if (AUTH && GACTIVITY.syncing && !GACTIVITY.syncedAt){
-      tlList.appendChild(el('div',{class:'lead-tl-connect'}, el('span',{class:'lead-tl-sub'},'Syncing your email & calendar…')));
+      container.appendChild(el('div',{class:'lead-tl-connect'}, el('span',{class:'lead-tl-sub'},'Syncing your email & calendar…')));
     }
-  };
-  paintTL();
-  if (AUTH && AUTH.gmail!==false && !GACTIVITY.syncedAt && !GACTIVITY.syncing){
-    syncGoogleActivity().then(()=>paintTL()).catch(()=>{});
   }
+}
+function tlNode(e, opts){
+  opts = opts || {};
+  const node = el('span',{class:'tl-node', html:e.icon});
+  const head = el('div',{class:'tl-headline'},
+    el('span',{class:'tl-title'}, e.title),
+    e.date ? el('span',{class:'tl-date'}, fmtDay(e.date)) : null);
+  const content = el('div',{class:'tl-content'}, head, e.sub ? el('div',{class:'tl-meta'}, e.sub) : null);
+  if (e.email && opts.expandable){
+    head.classList.add('clickable'); head.appendChild(el('span',{class:'tl-caret', html:'▾'}));
+    const panel = el('div',{class:'lead-tl-email-body'}); panel.style.display='none'; content.appendChild(panel);
+    let loaded=false, open=false;
+    head.addEventListener('click', async () => {
+      open=!open; panel.style.display = open ? '' : 'none'; head.classList.toggle('open', open);
+      if (open && !loaded){ loaded=true; panel.textContent='Loading…'; let b=''; if (e.emailId) b=await fetchEmailBody(e.emailId); panel.textContent = b || e.snippet || '(No preview available.)'; }
+    });
+  } else if (e.onClick){ head.classList.add('clickable'); head.addEventListener('click', e.onClick); }
+  return el('div',{class:'tl-item'}, node, content);
 }
 function openLead(deck, returnView){ state.leadReturn = returnView || (state.view==='pipeline'?'pipeline':'dashboard'); state.view='lead'; state.leadId=deck.id; renderLead(deck); document.getElementById('lead-page').style.display=''; window.scrollTo(0,0); }
 function backFromLead(){ document.getElementById('lead-page').style.display='none'; const rv = state.leadReturn || 'dashboard'; state.view = rv; if (rv==='pipeline') renderPipeline(); else renderDashboard(); window.scrollTo(0,0); }
-document.getElementById('lead-back').addEventListener('click', backFromLead);
 
 /* ---------- CRM section navigation ---------- */
 const SECTION_PAGE = { leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', settings:'settings-page' };
@@ -4130,7 +4203,7 @@ function openSettingsPage(tab){ if (tab) settingsTab = tab; showSection('setting
 function backFromPipeline(){ showSection('leads'); }
 function backFromLeaderboard(){ showSection('leads'); }
 function backFromSettings(){ showSection('leads'); }
-function openLead(deck, returnView){ state.leadReturn = returnView || state.section || 'leads'; state.view='lead'; state.leadId=deck.id; hideAllSections(); document.getElementById('lead-page').style.display=''; renderLead(deck); window.scrollTo(0,0); }
+function openLead(deck, returnView){ state.leadReturn = returnView || state.section || 'leads'; state.leadTab = 'overview'; state.view='lead'; state.leadId=deck.id; hideAllSections(); document.getElementById('lead-page').style.display=''; renderLead(deck); window.scrollTo(0,0); }
 function backFromLead(){ showSection(state.leadReturn || 'leads'); }
 
 /* ---------- Nudges & Tasks section ---------- */
