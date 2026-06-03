@@ -2014,6 +2014,10 @@
   .analysis-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .field-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .field-head label { margin-bottom: 0; }
+  .field-head-btns { display: flex; gap: 6px; }
+  .rec-note { display: flex; gap: 11px; align-items: flex-start; background: var(--accent-soft, #fdecea); border: 1px solid var(--accent-border, #f3c9c6); border-radius: var(--radius-sm); padding: 13px 15px; margin-bottom: 16px; font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+  .rec-note .rec-icon { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .rec-note .rec-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-bottom: 3px; }
   .personalize-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); border-color: var(--accent-border, #f3c9c6); }
   .personalize-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
   .personalize-btn svg { flex-shrink: 0; }
@@ -4028,13 +4032,50 @@ function openEmailModal(deck){
       pzLabel.textContent = 'Personalize from call';
     }
   });
+  const recNote = el('div',{class:'rec-note', style:'display:none'});
+  const suggestBtn = el('button',{class:'btn sm ghost personalize-btn', type:'button'},
+    el('span',{html:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>'}),
+    el('span',{class:'sg-label'}, 'Suggest next step'));
+  const sgLabel = suggestBtn.querySelector('.sg-label');
+  suggestBtn.addEventListener('click', async () => {
+    if (!SUPABASE_URL){ set('Cloud isn’t configured, so we can’t reach the recommend service.'); return; }
+    suggestBtn.disabled = true; sgLabel.textContent = 'Thinking…';
+    set('Reading the deal and recommending the next step…');
+    try {
+      const cur = DB.decks.find(d => d.id === deck.id) || deck;
+      const g = cur.callGrade || {};
+      const r = await fetch(SUPABASE_URL + '/functions/v1/recommend-action', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          school: cur.school, contactFirst: cur.contactFirst || '',
+          rep: sp ? { name: sp.name } : null,
+          daysQuiet: daysQuiet(cur), lastTouch: lastTouchDate(cur),
+          followup: cur.followup ? { scheduled: cur.followup.scheduled, startTime: cur.followup.startTime } : null,
+          emailed: !!cur.emailedAt,
+          callSummary: g.summary || '', callHeadline: g.headline || '', callImprovements: g.improvements || [], grade: g.grade || ''
+        })
+      });
+      const data = await r.json().catch(()=>({ error: 'Unexpected response from the service.' }));
+      if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+      recNote.innerHTML = '';
+      recNote.appendChild(el('span',{class:'rec-icon', html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>'}));
+      recNote.appendChild(el('div',{}, el('div',{class:'rec-label'},'Recommended next step'), el('div',{}, data.recommendation || '')));
+      recNote.style.display = '';
+      if (data.emailSubject) subjInput.value = data.emailSubject;
+      if (data.emailBody) bodyArea.value = data.emailBody;
+      set('Drafted from the recommendation below. Review and send.');
+    } catch(e){ set('Couldn’t suggest a next step: ' + (e && e.message ? e.message : e)); }
+    finally { suggestBtn.disabled = false; sgLabel.textContent = 'Suggest next step'; }
+  });
   const body = el('div',{},
     el('div',{class:'modal-h'},'Email the prospect'),
     el('div',{class:'modal-desc'},'Review and send it from your Gmail. The presentation and proposal attach automatically.'),
     el('div',{class:'field'}, el('label',{},'To'), toInput),
     el('div',{class:'field'}, el('label',{},'Subject'), subjInput),
+    recNote,
     el('div',{class:'field'},
-      el('div',{class:'field-head'}, el('label',{},'Message'), personalizeBtn),
+      el('div',{class:'field-head'}, el('label',{},'Message'), el('div',{class:'field-head-btns'}, suggestBtn, personalizeBtn)),
       bodyArea),
     el('div',{class:'email-attach'},
       el('span',{html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'}),
