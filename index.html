@@ -3927,6 +3927,7 @@ function renderTasksSection(){
 const CHART_COLORS = ['#EE362F','#1a56b0','#1f9d55','#b6781a','#7a4fd0','#0e9aa7','#c2566b','#5a6b7a'];
 function lastMonths(n){ const out=[]; const now=new Date(); for (let i=n-1;i>=0;i--){ const dt=new Date(now.getFullYear(), now.getMonth()-i, 1); out.push({ key: dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'), label: dt.toLocaleDateString(undefined,{month:'short'}) }); } return out; }
 function monthKey(iso){ return String(iso||'').slice(0,7); }
+function demoDate(d){ if (d.callGrade && d.callGrade.meetingDate) return d.callGrade.meetingDate; if (d.stageDates && d.stageDates.democompleted) return d.stageDates.democompleted; return ['democompleted','verbalcommit','closedwon'].includes(dealStage(d)) ? (d.updatedAt||d.createdAt) : null; }
 function committedDate(d){ if (d.stageDates && d.stageDates.verbalcommit) return d.stageDates.verbalcommit; const s=dealStage(d); return (s==='verbalcommit'||s==='closedwon') ? (d.updatedAt||d.createdAt) : null; }
 function closedWonDate(d){ if (d.stageDates && d.stageDates.closedwon) return d.stageDates.closedwon; return dealStage(d)==='closedwon' ? (d.updatedAt||d.createdAt) : null; }
 function bucketSeries(decks, dateFn, groupFn, months, valFn){
@@ -3961,7 +3962,7 @@ function renderMetrics(){
   body.appendChild(el('p',{class:'lb-sub'},'Last 6 months. Leads by source; demos, verbal commits and sales by rep. Demos = graded calls; commits/sales are dated when the stage was reached.'));
   const won=decks.filter(d=>dealStage(d)==='closedwon'), lost=decks.filter(d=>dealStage(d)==='closedlost');
   const wonAmt=won.reduce((a,d)=>a+dealAmount(d),0), openAmt=decks.filter(isOpenDeal).reduce((a,d)=>a+dealAmount(d),0);
-  const demos=decks.filter(d=>d.callGrade&&d.callGrade.meetingDate), commits=decks.filter(committedDate);
+  const demos=decks.filter(demoDate), commits=decks.filter(committedDate);
   const winRate=(won.length+lost.length)?Math.round(100*won.length/(won.length+lost.length)):null;
   body.appendChild(el('div',{class:'kpi-row'},
     kpi('Leads', String(decks.length)), kpi('Demos', String(demos.length)), kpi('Verbal commits', String(commits.length)),
@@ -3970,7 +3971,7 @@ function renderMetrics(){
   const months=lastMonths(6);
   body.appendChild(el('div',{class:'metric-grid'},
     chartCard('Leads by month — by source', months, bucketSeries(decks, d=>d.createdAt, d=>d.leadSource||'Other', months)),
-    chartCard('Demos by month — by rep', months, bucketSeries(demos, d=>d.callGrade.meetingDate, d=>repName(d.salespersonId), months)),
+    chartCard('Demos by month — by rep', months, bucketSeries(demos, demoDate, d=>repName(d.salespersonId), months)),
     chartCard('Verbal commits by month — by rep', months, bucketSeries(decks, committedDate, d=>repName(d.salespersonId), months)),
     chartCard('Sales by month — by rep ($)', months, bucketSeries(won, closedWonDate, d=>repName(d.salespersonId), months, d=>dealAmount(d)), fmtUSD)
   ));
