@@ -1992,6 +1992,13 @@
   .lead-tl-title { font-size: 14px; font-weight: 600; color: var(--ink); }
   .lead-tl-sub { font-size: 12.5px; color: var(--ink-4); margin-top: 2px; }
   .lead-tl-connect { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 14px 0 2px; margin-top: 6px; border-top: 1px dashed var(--border); }
+  .lead-tl-emailwrap { border-top: 1px solid var(--border); }
+  .lead-tl-emailwrap:first-child { border-top: none; }
+  .lead-tl-emailwrap .lead-tl-row { border-top: none; }
+  .lead-tl-emailhead { align-items: center; }
+  .lead-tl-caret { color: var(--ink-4); font-size: 11px; flex-shrink: 0; transition: transform .15s; margin-left: 6px; }
+  .lead-tl-emailhead.open .lead-tl-caret { transform: rotate(180deg); }
+  .lead-tl-email-body { font-size: 13px; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; line-height: 1.55; padding: 4px 0 14px 32px; max-height: 320px; overflow: auto; }
   .lead-empty { font-size: 13.5px; color: var(--ink-4); padding: 6px 0; }
   .school-name.lead-link { cursor: pointer; }
   .school-name.lead-link:hover { color: var(--accent); }
@@ -3734,11 +3741,31 @@ function leadTimeline(deck, meetings, emails){
   if (deck.followup && deck.followup.scheduled && deck.followup.startTime) ev.push({ date:deck.followup.startTime, icon:TL_ICON.cal, title:(new Date(deck.followup.startTime).getTime() > Date.now() ? 'Follow-up booked' : 'Follow-up'), sub: deck.followup.title || '' });
   deckTasks(deck).filter(t=>t.done && t.doneAt).forEach(t => ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task done — ' + t.text, sub:'' }));
   (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
-  (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail' }));
+  (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }));
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
   return ev;
 }
 function timelineRow(e){
+  if (e.email){
+    const panel = el('div',{class:'lead-tl-email-body'}); panel.style.display='none';
+    let loaded=false, open=false;
+    const toggle = async () => {
+      open=!open; panel.style.display = open ? '' : 'none'; head.classList.toggle('open', open);
+      if (open && !loaded){
+        loaded=true; panel.textContent='Loading…';
+        let body=''; if (e.emailId) body = await fetchEmailBody(e.emailId);
+        panel.textContent = body || e.snippet || '(No preview available — open in Gmail.)';
+      }
+    };
+    var head = el('div',{class:'lead-tl-row clickable lead-tl-emailhead', onClick: toggle},
+      el('span',{class:'lead-tl-icon', html:e.icon}),
+      el('div',{class:'lead-tl-body'},
+        el('div',{class:'lead-tl-title'}, e.title),
+        el('div',{class:'lead-tl-sub'}, [e.sub, e.date ? fmtDay(e.date) : ''].filter(Boolean).join('  ·  '))),
+      el('span',{class:'lead-tl-caret', html:'▾'})
+    );
+    return el('div',{class:'lead-tl-emailwrap'}, head, panel);
+  }
   return el('div',{class:'lead-tl-row' + (e.onClick?' clickable':''), onClick: e.onClick || null},
     el('span',{class:'lead-tl-icon', html:e.icon}),
     el('div',{class:'lead-tl-body'},
@@ -3808,13 +3835,41 @@ async function reconnectGoogle(deck){
    your Gmail + Calendar to every lead by email and caches the result so
    timelines load instantly (no per-lead auth, no re-prompting).
    ==================================================================== */
+const GACT_V = 2;   // bump to force a re-sync when the stored shape changes (added email snippet+id)
 let GACTIVITY = { byEmail:{}, meetingsByEmail:{}, syncedAt:null, syncing:false, counts:{emails:0,meetings:0,contacts:0} };
 function gactKey(){ return 'gl_gactivity_' + String((AUTH&&AUTH.email)||'').toLowerCase(); }
-function loadGActivity(){ try { const a=JSON.parse(localStorage.getItem(gactKey())||'null'); if (a&&a.byEmail){ GACTIVITY=Object.assign({byEmail:{},meetingsByEmail:{},syncedAt:null,syncing:false,counts:{emails:0,meetings:0,contacts:0}}, a, {syncing:false}); } } catch(e){} }
-function saveGActivity(){ try { localStorage.setItem(gactKey(), JSON.stringify({ byEmail:GACTIVITY.byEmail, meetingsByEmail:GACTIVITY.meetingsByEmail, syncedAt:GACTIVITY.syncedAt, counts:GACTIVITY.counts })); } catch(e){} }
+function loadGActivity(){ try { const a=JSON.parse(localStorage.getItem(gactKey())||'null'); if (a&&a.byEmail&&a.v===GACT_V){ GACTIVITY=Object.assign({byEmail:{},meetingsByEmail:{},syncedAt:null,syncing:false,counts:{emails:0,meetings:0,contacts:0}}, a, {syncing:false}); } } catch(e){} }
+function saveGActivity(){ try { localStorage.setItem(gactKey(), JSON.stringify({ v:GACT_V, byEmail:GACTIVITY.byEmail, meetingsByEmail:GACTIVITY.meetingsByEmail, syncedAt:GACTIVITY.syncedAt, counts:GACTIVITY.counts })); } catch(e){} }
 function extractEmails(s){ return (String(s||'').match(/[\w.+-]+@[\w-]+\.[\w.-]+/g)||[]).map(x=>x.toLowerCase()); }
 function cachedEmailsFor(deck){ const e=(deck.contactEmail||'').toLowerCase().trim(); return e ? (GACTIVITY.byEmail[e]||[]) : []; }
 function cachedMeetingsFor(deck){ const e=(deck.contactEmail||'').toLowerCase().trim(); return e ? (GACTIVITY.meetingsByEmail[e]||[]) : []; }
+function b64urlDecode(s){ try { return decodeURIComponent(escape(atob(String(s||'').replace(/-/g,'+').replace(/_/g,'/')))); } catch(e){ try { return atob(String(s||'').replace(/-/g,'+').replace(/_/g,'/')); } catch(e2){ return ''; } } }
+function htmlToText(h){ return String(h||'')
+  .replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<script[\s\S]*?<\/script>/gi,'')
+  .replace(/<br\s*\/?>/gi,'\n').replace(/<\/(p|div|tr|li|h[1-6])>/gi,'\n').replace(/<[^>]+>/g,'')
+  .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/&quot;/g,'"')
+  .replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim(); }
+function gmailExtractBody(payload){
+  if (!payload) return '';
+  let plain='', html='';
+  const walk = (p) => {
+    if (!p) return;
+    if (p.mimeType==='text/plain' && p.body && p.body.data && !plain) plain = b64urlDecode(p.body.data);
+    else if (p.mimeType==='text/html' && p.body && p.body.data && !html) html = b64urlDecode(p.body.data);
+    (p.parts||[]).forEach(walk);
+  };
+  walk(payload);
+  return (plain || htmlToText(html)).trim();
+}
+async function fetchEmailBody(id){
+  const token = await getTokenSilent(); if (!token) return '';
+  try {
+    const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full', { headers:{ Authorization:'Bearer '+token } });
+    if (!r.ok) return '';
+    const m = await r.json();
+    return gmailExtractBody(m.payload) || m.snippet || '';
+  } catch(e){ return ''; }
+}
 async function getTokenSilent(){
   if (AUTH && AUTH.token && Date.now() < AUTH.expires) return AUTH.token;
   try { const r=await requestToken('none'); AUTH=Object.assign({},AUTH||{},{ token:r.access_token, expires:Date.now()+((r.expires_in||3300)*1000)-60000 }); saveAuth(); return AUTH.token; }
@@ -3860,7 +3915,7 @@ async function syncGoogleActivity(opts){
             if (!date) return;
             const sent = String(hs['from']||'').toLowerCase().includes(me);
             const parties = new Set([...extractEmails(hs['from']), ...extractEmails(hs['to']), ...extractEmails(hs['cc'])]);
-            parties.forEach(p => { if (contactSet.has(p)) (byEmail[p]=byEmail[p]||[]).push({ date, subject: hs['subject']||'(no subject)', sent }); });
+            parties.forEach(p => { if (contactSet.has(p)) (byEmail[p]=byEmail[p]||[]).push({ date, subject: hs['subject']||'(no subject)', sent, snippet: m.snippet||'', id: m.id }); });
           });
           prog('Reading email… '+Math.min(i+10,idArr.length)+'/'+idArr.length);
         }
