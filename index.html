@@ -2030,6 +2030,19 @@
   .tl-meta { font-size: 12.5px; color: var(--ink-4); margin-top: 3px; }
   .tl-content .lead-tl-email-body { padding: 10px 0 2px 0; margin-top: 6px; border-top: 1px solid var(--border); }
   .lead-timeline.mini .tl-item { padding-bottom: 15px; }
+  .lead-actionbar { display: flex; gap: 8px; margin-top: 18px; }
+  .lead-action-btn { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2); padding: 8px 14px; }
+  .lead-action-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+  .lead-action-btn.active { border-color: var(--accent); color: var(--accent); }
+  .lead-action-ic { display: inline-flex; color: var(--ink-3); }
+  .lead-action-btn.active .lead-action-ic, .lead-action-btn:hover .lead-action-ic { color: inherit; }
+  .lead-composer { margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); }
+  .lead-comp-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; }
+  .lead-comp-input:focus { outline: none; border-color: var(--accent); }
+  .lead-comp-taskrow { display: flex; gap: 8px; }
+  .lead-comp-taskrow .lead-comp-input { flex: 1 1 auto; }
+  .lead-comp-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .tl-note-body { font-size: 13px; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; line-height: 1.55; margin-top: 8px; padding: 10px 12px; background: var(--wash, #f7f6f3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .lead-docs { display: flex; flex-direction: column; gap: 10px; }
   .doc-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #fff; }
   .doc-ic { width: 42px; height: 42px; border-radius: 10px; background: var(--wash, #f4f3ef); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -3753,13 +3766,16 @@ const TL_ICON = {
   phone:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   mail:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>',
   cal:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
-  check:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+  check:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  note:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
 };
 function deckTasks(deck){ return Array.isArray(deck.tasks) ? deck.tasks : []; }
 function saveDeckPatch(deck, patch){ const cur = DB.decks.find(x=>x.id===deck.id)||deck; const u = Object.assign({}, cur, patch, { updatedAt:new Date().toISOString() }); upsertDeck(u); return u; }
 function addTask(deck, text, due){ const tasks = deckTasks(deck).slice(); tasks.push({ id:uid('t_'), text, due:due||'', done:false, createdAt:new Date().toISOString() }); return saveDeckPatch(deck, { tasks }); }
 function toggleTask(deck, id){ const tasks = deckTasks(deck).map(t => t.id===id ? Object.assign({}, t, { done:!t.done, doneAt: !t.done ? new Date().toISOString() : null }) : t); return saveDeckPatch(deck, { tasks }); }
 function deleteTask(deck, id){ return saveDeckPatch(deck, { tasks: deckTasks(deck).filter(t=>t.id!==id) }); }
+function deckActivities(deck){ return Array.isArray(deck.activities) ? deck.activities : []; }
+function addNote(deck, text){ const activities = deckActivities(deck).slice(); activities.push({ id:uid('n_'), type:'note', date:new Date().toISOString(), text:text, by:(AUTH&&AUTH.name)||'' }); return saveDeckPatch(deck, { activities }); }
 function infoRow(k, v){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, k), el('span',{class:'lead-info-v'}, v)); }
 function leadTimeline(deck, meetings, emails){
   const ev = [];
@@ -3768,7 +3784,11 @@ function leadTimeline(deck, meetings, emails){
   if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Sales call', sub: (g.grade ? ('Graded ' + g.grade + ' · ' + g.overall + '/100') : ''), onClick:()=>openAnalysisDrawer(deck) });
   if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'' });
   if (deck.followup && deck.followup.scheduled && deck.followup.startTime) ev.push({ date:deck.followup.startTime, icon:TL_ICON.cal, title:(new Date(deck.followup.startTime).getTime() > Date.now() ? 'Follow-up booked' : 'Follow-up'), sub: deck.followup.title || '' });
-  deckTasks(deck).filter(t=>t.done && t.doneAt).forEach(t => ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task done — ' + t.text, sub:'' }));
+  deckTasks(deck).forEach(t => {
+    if (t.createdAt) ev.push({ date:t.createdAt, icon:TL_ICON.check, title:'Task created', sub:t.text });
+    if (t.done && t.doneAt) ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task completed', sub:t.text });
+  });
+  deckActivities(deck).forEach(a => { if (a.type==='note') ev.push({ date:a.date, icon:TL_ICON.note, title:'Note' + (a.by?(' · '+String(a.by).split(/\s+/)[0]):''), note:a.text }); });
   (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
   (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }));
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -4060,10 +4080,17 @@ function renderLead(deck){
       el('div',{}, el('h1',{class:'lead-title'}, deck.school), el('div',{class:'lead-sub'}, contact || deck.contactEmail || ''))),
     el('div',{class:'lead-head-right'}, el('span',{class:'stage-chip stage-' + dealStage(deck)}, stageMeta(dealStage(deck)).short), stageSel)
   ));
+  // quick actions (log to timeline)
+  body.appendChild(el('div',{class:'lead-actionbar'},
+    el('button',{class:'lead-action-btn', type:'button', onClick:()=>{ state.leadComposer=null; openEmailModal(deck); }}, el('span',{class:'lead-action-ic', html:TL_ICON.mail}), 'Email'),
+    el('button',{class:'lead-action-btn'+(state.leadComposer==='task'?' active':''), type:'button', onClick:()=>{ state.leadComposer = state.leadComposer==='task'?null:'task'; renderLead(deck); }}, el('span',{class:'lead-action-ic', html:TL_ICON.check}), 'Task'),
+    el('button',{class:'lead-action-btn'+(state.leadComposer==='note'?' active':''), type:'button', onClick:()=>{ state.leadComposer = state.leadComposer==='note'?null:'note'; renderLead(deck); }}, el('span',{class:'lead-action-ic', html:TL_ICON.note}), 'Note')
+  ));
+  const comp = leadComposer(deck); if (comp) body.appendChild(comp);
   // sub-tabs
   const openN = deckTasks(deck).filter(t=>!t.done).length;
   const tabNav = el('div',{class:'lead-tabs'});
-  [['overview','Overview'],['timeline','Timeline'],['documents','Documents'],['tasks','Tasks']].forEach(([k,l]) =>
+  [['overview','Overview'],['timeline','Timeline'],['tasks','Tasks'],['documents','Documents']].forEach(([k,l]) =>
     tabNav.appendChild(el('button',{class:'lead-tab'+(leadTab===k?' active':''), type:'button', onClick:()=>{ state.leadTab=k; renderLead(deck); }},
       l, (k==='tasks'&&openN)?el('span',{class:'lead-tab-badge'},String(openN)):null)));
   body.appendChild(tabNav);
@@ -4157,6 +4184,32 @@ function renderLeadDocuments(deck, content){
     el('button',{class:'btn sm', type:'button', onClick:()=>openEmailModal(deck)}, deck.emailedAt ? 'Resend deck + proposal' : 'Email deck + proposal')));
   content.appendChild(card);
 }
+function leadComposer(deck){
+  const mode = state.leadComposer;
+  if (!mode) return null;
+  const wrap = el('div',{class:'lead-composer'});
+  const cancel = ()=>{ state.leadComposer=null; renderLead(deck); };
+  if (mode==='note'){
+    const ta = el('textarea',{class:'lead-comp-input', rows:'3', placeholder:'Add a note about this lead…'});
+    const save = ()=>{ const v=ta.value.trim(); if(!v) return; addNote(deck, v); state.leadComposer=null; renderLead(deck); };
+    wrap.appendChild(ta);
+    wrap.appendChild(el('div',{class:'lead-comp-actions'},
+      el('button',{class:'btn sm primary', type:'button', onClick:save},'Save note'),
+      el('button',{class:'btn ghost sm', type:'button', onClick:cancel},'Cancel')));
+    setTimeout(()=>ta.focus(), 0);
+  } else if (mode==='task'){
+    const ti = el('input',{type:'text', class:'lead-comp-input', placeholder:'Task — e.g. Send district pricing'});
+    const due = el('input',{type:'date', class:'lead-task-date'});
+    const save = ()=>{ const v=ti.value.trim(); if(!v) return; addTask(deck, v, due.value); state.leadComposer=null; renderLead(deck); };
+    ti.addEventListener('keydown', e=>{ if (e.key==='Enter') save(); });
+    wrap.appendChild(el('div',{class:'lead-comp-taskrow'}, ti, due));
+    wrap.appendChild(el('div',{class:'lead-comp-actions'},
+      el('button',{class:'btn sm primary', type:'button', onClick:save},'Add task'),
+      el('button',{class:'btn ghost sm', type:'button', onClick:cancel},'Cancel')));
+    setTimeout(()=>ti.focus(), 0);
+  }
+  return wrap;
+}
 function fillTimeline(container, deck, opts){
   opts = opts || {};
   container.innerHTML='';
@@ -4190,6 +4243,7 @@ function tlNode(e, opts){
       if (open && !loaded){ loaded=true; panel.textContent='Loading…'; let b=''; if (e.emailId) b=await fetchEmailBody(e.emailId); panel.textContent = b || e.snippet || '(No preview available.)'; }
     });
   } else if (e.onClick){ head.classList.add('clickable'); head.addEventListener('click', e.onClick); }
+  if (e.note) content.appendChild(el('div',{class:'tl-note-body'}, e.note));
   return el('div',{class:'tl-item'}, node, content);
 }
 function openLead(deck, returnView){ state.leadReturn = returnView || (state.view==='pipeline'?'pipeline':'dashboard'); state.view='lead'; state.leadId=deck.id; renderLead(deck); document.getElementById('lead-page').style.display=''; window.scrollTo(0,0); }
@@ -4250,7 +4304,7 @@ function openSettingsPage(tab){ if (tab) settingsTab = tab; showSection('setting
 function backFromPipeline(){ showSection('leads'); }
 function backFromLeaderboard(){ showSection('leads'); }
 function backFromSettings(){ showSection('leads'); }
-function openLead(deck, returnView){ state.leadReturn = returnView || state.section || 'leads'; state.leadTab = 'overview'; state.view='lead'; state.leadId=deck.id; hideAllSections(); document.getElementById('lead-page').style.display=''; renderLead(deck); window.scrollTo(0,0); }
+function openLead(deck, returnView){ state.leadReturn = returnView || state.section || 'leads'; state.leadTab = 'overview'; state.leadComposer = null; state.view='lead'; state.leadId=deck.id; hideAllSections(); document.getElementById('lead-page').style.display=''; renderLead(deck); window.scrollTo(0,0); }
 function backFromLead(){ showSection(state.leadReturn || 'leads'); }
 
 /* ---------- Nudges & Tasks section ---------- */
