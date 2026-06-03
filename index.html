@@ -1948,6 +1948,31 @@
   .settings-tab { font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-4); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 16px; margin-bottom: -1px; cursor: pointer; transition: color .15s var(--easing), border-color .15s var(--easing); }
   .settings-tab:hover { color: var(--ink-2); }
   .settings-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .pl-main { max-width: 1180px; margin: 0 auto; padding: 40px 40px 100px; }
+  .pl-headrow { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  .pl-totals { display: flex; gap: 22px; font-size: 13px; color: var(--ink-4); }
+  .pl-tot-lbl { font-weight: 600; }
+  .pl-tot-val { font-weight: 800; color: var(--ink); }
+  .pl-tot-val.won { color: #1f9d55; }
+  .pl-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 18px; }
+  .pl-tab { flex: 1; min-width: 130px; text-align: left; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer; transition: all .15s var(--easing); }
+  .pl-tab:hover { border-color: var(--ink-3); }
+  .pl-tab.active { border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--accent); }
+  .pl-tab-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-bottom: 7px; }
+  .pl-tab-dot.stage-newlead{background:#b9b6b3}.pl-tab-dot.stage-demoscheduled{background:#1a56b0}.pl-tab-dot.stage-noshow{background:#c62b25}.pl-tab-dot.stage-democompleted{background:#3457b2}.pl-tab-dot.stage-verbalcommit{background:#b6781a}.pl-tab-dot.stage-closedwon{background:#1f9d55}.pl-tab-dot.stage-closedlost{background:#b9b6b3}
+  .pl-tab-label { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.25; }
+  .pl-tab-meta { font-size: 12px; color: var(--ink-4); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .pl-list { display: flex; flex-direction: column; gap: 6px; }
+  .pl-row { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr) 110px 110px 150px; align-items: center; gap: 14px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .pl-row-head { background: none; border: none; padding: 0 16px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
+  .pl-deal { min-width: 0; cursor: pointer; }
+  .pl-deal:hover .pl-school { color: var(--accent); }
+  .pl-school { font-size: 14.5px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pl-contact { font-size: 12px; color: var(--ink-4); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pl-cell { font-size: 13.5px; color: var(--ink-2); min-width: 0; }
+  .pl-cell.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .pl-move { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); cursor: pointer; }
+  .pl-empty { padding: 28px 16px; color: var(--ink-4); font-size: 14px; }
   .lb-main { max-width: 1000px; margin: 0 auto; padding: 40px 40px 100px; }
   .lb-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
   .lb-sub { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; line-height: 1.5; max-width: 720px; }
@@ -1997,10 +2022,14 @@
   .fu-chip.fu-set { background: #e7f6ee; color: #1f7a47; }
   .fu-chip.fu-past, .fu-chip.fu-none { background: var(--surface); color: var(--ink-4); font-weight: 600; }
   .fu-chip.fu-nudge { background: #fdecea; color: #c62b25; }
-  .stage-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .01em; }
-  .stage-chip.stage-won { background: #e7f6ee; color: #1f7a47; }
-  .stage-chip.stage-lost { background: var(--surface); color: var(--ink-4); }
-  .stage-chip.stage-hold { background: #fdf3e3; color: #b6781a; }
+  .stage-chip { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; }
+  .stage-chip.stage-newlead       { background: var(--surface); color: var(--ink-3); }
+  .stage-chip.stage-demoscheduled { background: #e8f0fe; color: #1a56b0; }
+  .stage-chip.stage-noshow        { background: #fdecea; color: #c62b25; }
+  .stage-chip.stage-democompleted { background: #eaf2ff; color: #3457b2; }
+  .stage-chip.stage-verbalcommit  { background: #fdf3e3; color: #b6781a; }
+  .stage-chip.stage-closedwon     { background: #e7f6ee; color: #1f7a47; }
+  .stage-chip.stage-closedlost    { background: var(--surface); color: var(--ink-4); }
   .fu-chip svg { flex-shrink: 0; }
   /* rubric editor (Settings) */
   .rub-help { font-size: 13.5px; color: var(--ink-3); margin: 0 0 14px; line-height: 1.5; }
@@ -2240,6 +2269,10 @@
       </div>
       <div class="dash-actions">
         <button class="user-chip" id="user-chip" type="button" style="display:none"></button>
+        <button class="btn ghost" id="pipeline-btn" type="button" title="Deals by stage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="21"/><line x1="12" y1="3" x2="12" y2="13"/><line x1="18" y1="3" x2="18" y2="17"/></svg>
+          Pipeline
+        </button>
         <button class="btn ghost" id="today-btn" type="button" title="What needs attention today">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           <span id="today-label">Today</span>
@@ -2327,6 +2360,23 @@
     <div class="lb-main"><div id="leaderboard-body"></div></div>
   </div>
 
+  <!-- Pipeline page -->
+  <div class="dash" id="pipeline-page" style="display:none; z-index:31;">
+    <div class="dash-top">
+      <div class="dash-brand">
+        <span class="brand-mark" id="brand-mark-pipeline"></span>
+        <span class="dash-brand-sub">Pipeline</span>
+      </div>
+      <div class="dash-actions">
+        <button class="btn ghost" id="pipeline-back" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          Back to decks
+        </button>
+      </div>
+    </div>
+    <div class="pl-main"><div id="pipeline-body"></div></div>
+  </div>
+
   <!-- Modals (create deck / manage team) -->
   <div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal"></div></div>
 
@@ -2377,7 +2427,7 @@ const LOGO_IMG_DARK  = '<img src="' + LOGO_DATA + '" alt="GearLocker" />';
 const LOGO_IMG_WHITE = '<img src="' + LOGO_DATA + '" alt="GearLocker" style="filter:brightness(0) invert(1)" />';
 /* Legacy alias — anything that historically used LOGO_SVG gets the dark img. */
 const LOGO_SVG = LOGO_IMG_DARK;
-['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis','brand-mark-leaderboard'].forEach(id => {
+['brand-mark-top','brand-mark-intro','brand-mark-build','brand-mark-login','brand-mark-settings','brand-mark-analysis','brand-mark-leaderboard','brand-mark-pipeline'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = LOGO_IMG_DARK;
 });
@@ -2782,18 +2832,33 @@ function daysQuiet(deck){ const last = lastTouchDate(deck); return last ? dayDif
 function nudgeThreshold(){ return Number(AUTOMATION.nudgeDays) || 10; }
 function hasUpcomingFollowup(deck){ return !!(deck.followup && deck.followup.scheduled && deck.followup.startTime && new Date(deck.followup.startTime).getTime() > Date.now()); }
 const STAGES = [
-  { key:'active', label:'Active' },
-  { key:'won',    label:'Won' },
-  { key:'lost',   label:'Lost' },
-  { key:'hold',   label:'On hold' }
+  { key:'newlead',       label:'New Lead – No Demo', short:'New lead' },
+  { key:'demoscheduled', label:'Demo Scheduled',     short:'Demo scheduled' },
+  { key:'noshow',        label:'No-Showed Demo',     short:'No-show' },
+  { key:'democompleted', label:'Demo Completed',     short:'Demo done' },
+  { key:'verbalcommit',  label:'Verbal Commit',      short:'Verbal commit' },
+  { key:'closedwon',     label:'Closed Won',         short:'Won' },
+  { key:'closedlost',    label:'Closed Lost',        short:'Lost' }
 ];
-function dealStage(deck){ return (deck && deck.stage) || 'active'; }
-function isOpenDeal(deck){ return dealStage(deck) === 'active'; }
+const STAGE_MAP_OLD = { active:'newlead', won:'closedwon', lost:'closedlost', hold:'newlead' };  // migrate the old 4-stage values
+const LEAD_SOURCES = ['Cold outreach','Inbound / website','Referral','Event / conference','Partner','Other'];
+function dealStage(deck){
+  const s = deck && deck.stage;
+  if (!s) return 'newlead';
+  if (STAGE_MAP_OLD[s]) return STAGE_MAP_OLD[s];
+  return STAGES.find(x=>x.key===s) ? s : 'newlead';
+}
+function stageMeta(key){ return STAGES.find(x=>x.key===key) || STAGES[0]; }
+function isClosed(deck){ const s = dealStage(deck); return s === 'closedwon' || s === 'closedlost'; }
+function isOpenDeal(deck){ return !isClosed(deck); }
 function stageChip(deck){
   const s = dealStage(deck);
-  if (s === 'active') return null;   // active is the default — no chip needed
-  const meta = STAGES.find(x=>x.key===s) || STAGES[0];
-  return el('span',{class:'stage-chip stage-' + s}, meta.label);
+  return el('span',{class:'stage-chip stage-' + s, title: stageMeta(s).label}, stageMeta(s).short);
+}
+function dealAmount(deck){
+  if (deck && deck.amount != null && deck.amount !== '') return Number(deck.amount) || 0;
+  const t = pickTier(deck && deck.enrollment);   // fall back to the matched pricing-tier annual
+  return t ? t.annual : 0;
 }
 function dealNeedsNudge(deck){ if (!isOpenDeal(deck)) return false; if (hasUpcomingFollowup(deck)) return false; const q = daysQuiet(deck); return q != null && q >= nudgeThreshold(); }
 function followupChip(deck){
@@ -3003,7 +3068,7 @@ function createDeck(o){
   const now = new Date().toISOString();
   const deck = { id: uid('d_'), school: o.school, salespersonId: o.salespersonId,
     contactFirst: o.contactFirst || '', contactLast: o.contactLast || '', contactEmail: o.contactEmail || '',
-    stage: 'active', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
+    stage: 'newlead', leadSource: 'Cold outreach', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
   closeModal();
   openDeck(deck.id);
@@ -3016,13 +3081,17 @@ function openEditModal(deck){
   const firstInput  = el('input',{type:'text', value: deck.contactFirst || ''});
   const lastInput   = el('input',{type:'text', value: deck.contactLast || ''});
   const emailInput  = el('input',{type:'email', value: deck.contactEmail || ''});
+  const phoneInput  = el('input',{type:'text', value: deck.contactPhone || '', placeholder:'(555) 123-4567'});
   const repSelect = el('select',{}, ...team.map(p=>el('option',{value:p.id}, p.name)));
   const stageSelect = el('select',{}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
+  const amountInput = el('input',{type:'number', min:'0', step:'100', value: (deck.amount != null && deck.amount !== '') ? deck.amount : '', placeholder: String(dealAmount(deck))});
+  const sourceSelect = el('select',{}, ...LEAD_SOURCES.map(s=>el('option',{value:s}, s)));
   const save = () => {
     const school = schoolInput.value.trim();
     if (school.length < 2){ schoolInput.focus(); return; }
     upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value, stage: stageSelect.value,
       contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim(),
+      contactPhone: phoneInput.value.trim(), amount: amountInput.value.trim(), leadSource: sourceSelect.value,
       updatedAt: new Date().toISOString() }));
     closeModal();
     renderDashboard();
@@ -3034,11 +3103,16 @@ function openEditModal(deck){
     el('div',{class:'modal-desc'},'Update the school, the prospect contact, or the assigned salesperson. Discovery answers stay put.'),
     el('div',{class:'field'}, el('label',{},'School / organization'), schoolInput),
     el('div',{class:'field'}, el('label',{},'Contact name'), el('div',{class:'field-row'}, firstInput, lastInput)),
-    el('div',{class:'field'}, el('label',{},'Contact email'), emailInput),
+    el('div',{class:'field-row'},
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Contact email'), emailInput),
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Contact phone'), phoneInput)),
     el('div',{class:'field-row'},
       el('div',{class:'field', style:'flex:1'}, el('label',{},'Salesperson'),
         team.length ? repSelect : el('div',{class:'modal-note'},'No salespeople yet — add one in Team.')),
       el('div',{class:'field', style:'flex:1'}, el('label',{},'Stage'), stageSelect)),
+    el('div',{class:'field-row'},
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Forecast amount ($/yr)'), amountInput),
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Lead source'), sourceSelect)),
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
       team.length ? el('button',{class:'btn primary', onClick:save}, 'Save changes') : null
@@ -3047,6 +3121,7 @@ function openEditModal(deck){
   openModal(body);
   if (team.length) repSelect.value = deck.salespersonId;   // preselect current rep
   stageSelect.value = dealStage(deck);
+  sourceSelect.value = deck.leadSource || LEAD_SOURCES[0];
   setTimeout(()=>schoolInput.focus(),50);
 }
 
@@ -3296,8 +3371,8 @@ function letterGrade(n){ if(n==null)return'—'; if(n>=93)return'A';if(n>=90)ret
 function repStats(decks){
   const graded = decks.filter(d => d.callGrade && typeof d.callGrade.overall === 'number');
   const avg = graded.length ? Math.round(graded.reduce((a,d)=>a+d.callGrade.overall,0)/graded.length) : null;
-  const won = decks.filter(d=>dealStage(d)==='won').length;
-  const lost = decks.filter(d=>dealStage(d)==='lost').length;
+  const won = decks.filter(d=>dealStage(d)==='closedwon').length;
+  const lost = decks.filter(d=>dealStage(d)==='closedlost').length;
   return { count: decks.length, graded: graded.length, avg,
     booked: decks.filter(hasUpcomingFollowup).length,
     nudge: decks.filter(dealNeedsNudge).length,
@@ -3419,6 +3494,65 @@ function renderLeaderboard(){
 }
 function openLeaderboard(){ state.view='leaderboard'; renderLeaderboard(); document.getElementById('leaderboard-page').style.display=''; window.scrollTo(0,0); }
 function backFromLeaderboard(){ state.view='dashboard'; document.getElementById('leaderboard-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
+
+/* ---------- Pipeline (deals by stage) ---------- */
+function fmtUSD(n){ return '$' + Math.round(Number(n)||0).toLocaleString(); }
+let pipelineStage = null;
+function renderPipeline(){
+  const body = document.getElementById('pipeline-body');
+  body.innerHTML = '';
+  const decks = getDecks(), team = getTeam();
+  const byStage = {}; STAGES.forEach(s => byStage[s.key] = { count:0, amount:0, decks:[] });
+  decks.forEach(d => { const k = dealStage(d); if (byStage[k]){ byStage[k].count++; byStage[k].amount += dealAmount(d); byStage[k].decks.push(d); } });
+  if (!pipelineStage || !byStage[pipelineStage]) pipelineStage = (STAGES.find(s => byStage[s.key].count > 0) || STAGES[0]).key;
+  const openVal = STAGES.filter(s => s.key!=='closedwon' && s.key!=='closedlost').reduce((a,s)=> a + byStage[s.key].amount, 0);
+  const wonVal = byStage['closedwon'].amount;
+
+  body.appendChild(el('div',{class:'pl-headrow'},
+    el('h1',{class:'lb-title'},'Pipeline'),
+    el('div',{class:'pl-totals'},
+      el('span',{}, el('span',{class:'pl-tot-lbl'},'Open pipeline '), el('span',{class:'pl-tot-val'}, fmtUSD(openVal))),
+      el('span',{}, el('span',{class:'pl-tot-lbl'},'Won '), el('span',{class:'pl-tot-val won'}, fmtUSD(wonVal))))
+  ));
+
+  const tabs = el('div',{class:'pl-tabs'});
+  STAGES.forEach(s => {
+    const b = byStage[s.key];
+    tabs.appendChild(el('button',{class:'pl-tab' + (pipelineStage===s.key?' active':''), type:'button', onClick:()=>{ pipelineStage = s.key; renderPipeline(); }},
+      el('span',{class:'pl-tab-dot stage-' + s.key}),
+      el('div',{class:'pl-tab-label'}, s.short),
+      el('div',{class:'pl-tab-meta'}, b.count + (b.amount ? '  ·  ' + fmtUSD(b.amount) : ''))
+    ));
+  });
+  body.appendChild(tabs);
+
+  const sel = byStage[pipelineStage];
+  const list = el('div',{class:'pl-list'});
+  list.appendChild(el('div',{class:'pl-row pl-row-head'}, el('div',{},'Deal'), el('div',{},'Owner'), el('div',{},'Amount'), el('div',{},'Last touch'), el('div',{},'Move to')));
+  if (!sel.decks.length){ list.appendChild(el('div',{class:'pl-empty'}, 'No deals in ' + stageMeta(pipelineStage).label + '.')); }
+  sel.decks.slice().sort((a,b)=> dealAmount(b) - dealAmount(a)).forEach(d => {
+    const sp = team.find(p=>p.id===d.salespersonId);
+    const contact = [d.contactFirst, d.contactLast].filter(Boolean).join(' ');
+    const mover = el('select',{class:'pl-move'}, ...STAGES.map(s=>el('option',{value:s.key}, s.short)));
+    mover.value = dealStage(d);
+    mover.addEventListener('change', () => { const cur = DB.decks.find(x=>x.id===d.id)||d; upsertDeck(Object.assign({}, cur, { stage: mover.value, updatedAt: new Date().toISOString() })); renderPipeline(); });
+    const lt = lastTouchDate(d);
+    list.appendChild(el('div',{class:'pl-row'},
+      el('div',{class:'pl-deal', onClick:()=>openEditModal(d)},
+        el('div',{class:'pl-school'}, d.school),
+        el('div',{class:'pl-contact'}, contact || d.contactEmail || '—')),
+      el('div',{class:'pl-cell'}, sp ? sp.name : el('span',{class:'muted'},'—')),
+      el('div',{class:'pl-cell num'}, fmtUSD(dealAmount(d))),
+      el('div',{class:'pl-cell'}, lt ? fmtDay(lt) : '—'),
+      el('div',{class:'pl-cell'}, mover)
+    ));
+  });
+  body.appendChild(list);
+}
+function openPipeline(){ state.view='pipeline'; renderPipeline(); document.getElementById('pipeline-page').style.display=''; window.scrollTo(0,0); }
+function backFromPipeline(){ state.view='dashboard'; document.getElementById('pipeline-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
+document.getElementById('pipeline-btn').addEventListener('click', openPipeline);
+document.getElementById('pipeline-back').addEventListener('click', backFromPipeline);
 
 /* ---------- Daily digest: "what needs attention today" ---------- */
 const CHART_MINI = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>';
