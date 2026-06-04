@@ -2058,6 +2058,25 @@
   .nudge-warn button { flex-shrink: 0; }
   .reply-ic { color: var(--accent); }
   .reply-subj { color: var(--ink-3); font-weight: 500; }
+  /* start-my-day briefing */
+  .today-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .today-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0; }
+  .today-date { font-size: 14px; color: var(--ink-4); margin: 6px 0 0; }
+  .today-summary { margin: 22px 0 20px; }
+  .today-sum-text { font-size: 16px; line-height: 1.55; color: var(--ink); font-weight: 500; max-width: 760px; }
+  .today-empty { font-size: 14.5px; color: var(--ink-3); line-height: 1.5; }
+  .today-list { display: flex; flex-direction: column; gap: 10px; }
+  .today-card { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .today-rank { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .today-card-body { flex: 1 1 auto; min-width: 0; }
+  .today-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .today-school { font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer; }
+  .today-school:hover { color: var(--accent); }
+  .today-why { font-size: 13px; color: var(--ink-4); line-height: 1.45; margin-bottom: 6px; }
+  .today-action { font-size: 14px; color: var(--ink); line-height: 1.45; font-weight: 500; }
+  .today-action::before { content: '→'; color: var(--accent); font-weight: 700; margin-right: 7px; }
+  .today-card-act { display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; align-items: stretch; }
+  @media (max-width: 720px){ .today-card { flex-wrap: wrap; } .today-card-act { flex-direction: row; width: 100%; } }
   .lead-actionbar { display: flex; gap: 8px; margin-top: 18px; }
   .lead-action-btn { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2); padding: 8px 14px; }
   .lead-action-btn:hover { border-color: var(--ink-3); color: var(--ink); }
@@ -2641,6 +2660,12 @@
   <div class="dash section-layer" id="metrics-page" style="display:none;">
     <div class="dash-top"></div>
     <div class="pl-main"><div id="metrics-body"></div></div>
+  </div>
+
+  <!-- Start-my-day briefing page -->
+  <div class="dash section-layer" id="today-page" style="display:none;">
+    <div class="dash-top"></div>
+    <div class="lb-main"><div id="today-body"></div></div>
   </div>
 
   <!-- Modals (create deck / manage team) -->
@@ -4432,6 +4457,110 @@ async function generateReply(deck, inbound){
   return data;
 }
 function aiLoading(msg){ return el('div',{class:'lead-ai-loading'}, el('span',{class:'lead-ai-spin'}), el('span',{}, msg||'Reading the account…')); }
+/* ---------- Start-my-day AI briefing ---------- */
+function briefingCandidates(){
+  const rep = currentRep();
+  let decks = getDecks().filter(isOpenDeal);
+  const owned = rep ? decks.filter(d => d.salespersonId === rep.id) : [];
+  if (owned.length) decks = owned;   // the rep's own book (managers with no owned deals fall back to all open)
+  const today = new Date().toISOString().slice(0,10);
+  const out = [];
+  decks.forEach(d => {
+    const inbound = deckLatestInbound(d);
+    const tasksDue = deckTasks(d).filter(t => !t.done && t.due && String(t.due) <= today);
+    const fuToday = hasUpcomingFollowup(d) && String(d.followup.startTime).slice(0,10) <= today;
+    const nudge = dealNeedsNudge(d);
+    let score = 0;
+    if (inbound) score += 100;
+    score += tasksDue.length * 30;
+    if (fuToday) score += 60;
+    if (nudge) score += Math.min(45, (daysQuiet(d)||0));
+    score += ({verbalcommit:28, democompleted:18, noshow:16, demoscheduled:12, newlead:5})[dealStage(d)] || 0;
+    if (!score) return;
+    out.push({ deck:d, inbound, tasksDue, fuToday, nudge, score });
+  });
+  return out.sort((a,b)=>b.score-a.score).slice(0, 25);
+}
+function briefingKey(){ return 'gl_briefing_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + new Date().toISOString().slice(0,10); }
+async function generateBriefing(cands){
+  const rep = currentRep();
+  const payload = {
+    rep: rep ? { name: rep.name } : (AUTH ? { name: AUTH.name } : null),
+    today: new Date().toISOString().slice(0,10),
+    candidates: cands.map(c => ({
+      id: c.deck.id, school: c.deck.school,
+      contact: [c.deck.contactFirst, c.deck.contactLast].filter(Boolean).join(' '),
+      stage: stageMeta(dealStage(c.deck)).label,
+      amount: dealAmount(c.deck) ? ('$' + dealAmount(c.deck).toLocaleString()) : '',
+      daysQuiet: daysQuiet(c.deck),
+      hasReply: !!c.inbound, replySnippet: c.inbound ? (c.inbound.snippet || c.inbound.subject || '') : '',
+      tasksDue: c.tasksDue.map(t => t.text), followupToday: c.fuToday,
+      lastGrade: (c.deck.callGrade && c.deck.callGrade.grade) || '',
+      nextStep: (c.deck.ai && c.deck.ai.recommendation) || ''
+    }))
+  };
+  const r = await fetch(SUPABASE_URL + '/functions/v1/daily-briefing', {
+    method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify(payload)
+  });
+  const data = await r.json().catch(()=>({error:'Unexpected response.'}));
+  if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+  return data;
+}
+let briefingBusy = false;
+function renderToday(force){
+  const body = document.getElementById('today-body'); if (!body) return; body.innerHTML = '';
+  const first = AUTH && AUTH.name ? String(AUTH.name).trim().split(/\s+/)[0] : '';
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  body.appendChild(el('div',{class:'today-head'},
+    el('div',{}, el('h1',{class:'today-title'}, greet + (first ? (', ' + first) : '')), el('p',{class:'today-date'}, new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'}))),
+    el('button',{class:'btn ghost sm', type:'button', onClick:()=>renderToday(true)}, '↻ Refresh')));
+  const sumEl = el('div',{class:'today-summary'}); body.appendChild(sumEl);
+  const listEl = el('div',{class:'today-list'}); body.appendChild(listEl);
+
+  const cands = briefingCandidates();
+  if (!cands.length){ sumEl.appendChild(el('div',{class:'today-empty'}, (AUTH && AUTH.gmail===false) ? 'Connect Gmail in Settings to power your briefing. For now, nothing’s flagged — you’re clear.' : 'You’re all clear — no replies waiting, tasks due, or deals going cold. Nice work.')); return; }
+
+  const draw = (data) => {
+    sumEl.innerHTML = ''; listEl.innerHTML = '';
+    if (data.summary) sumEl.appendChild(el('div',{class:'today-sum-text'}, data.summary));
+    const byId = {}; cands.forEach(c => byId[c.deck.id] = c);
+    const pris = (data.priorities || []).filter(p => byId[p.id]);
+    pris.forEach((p, i) => listEl.appendChild(todayCard(p, byId[p.id], i+1)));
+    if (!pris.length) listEl.appendChild(el('div',{class:'today-empty'}, 'Open your leads to keep moving.'));
+  };
+
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(briefingKey()) || 'null'); } catch(e){}
+  if (cached && !force){ draw(cached); return; }
+  if (!SUPABASE_URL){ sumEl.appendChild(el('div',{class:'today-empty'}, 'Cloud isn’t configured.')); return; }
+  sumEl.appendChild(aiLoading('Reading your book and ranking the day…'));
+  if (briefingBusy) return; briefingBusy = true;
+  generateBriefing(cands).then(data => {
+    briefingBusy = false;
+    try { localStorage.setItem(briefingKey(), JSON.stringify(Object.assign({}, data, { at:new Date().toISOString() }))); } catch(e){}
+    if (state.view === 'today') draw(data);
+  }).catch(e => {
+    briefingBusy = false;
+    if (state.view === 'today'){ sumEl.innerHTML = ''; sumEl.appendChild(el('div',{class:'today-empty'}, 'Couldn’t build the briefing — ' + (e && e.message ? e.message : e))); }
+  });
+}
+function todayCard(p, cand, rank){
+  const deck = cand.deck;
+  let primary = null;
+  if (p.actionType === 'reply' && cand.inbound) primary = el('button',{class:'btn sm primary', type:'button', onClick:()=>openEmailModal(deck, { attach:false, replyTo:{ id:cand.inbound.id, subject:cand.inbound.subject, snippet:cand.inbound.snippet, date:cand.inbound.date } })}, 'Draft reply');
+  else if (p.actionType === 'email') primary = el('button',{class:'btn sm primary', type:'button', onClick:()=>openEmailModal(deck, { autodraft:true })}, 'Draft email');
+  const openBtn = el('button',{class:'btn sm' + (primary ? ' ghost' : ' primary'), type:'button', onClick:()=>openLead(deck, 'today')}, primary ? 'Open' : 'Open lead');
+  return el('div',{class:'today-card'},
+    el('div',{class:'today-rank'}, String(rank)),
+    el('div',{class:'today-card-body'},
+      el('div',{class:'today-card-top'}, el('span',{class:'today-school', onClick:()=>openLead(deck,'today')}, deck.school), el('span',{class:'stage-chip stage-'+dealStage(deck)}, stageMeta(dealStage(deck)).short)),
+      el('div',{class:'today-why'}, p.why),
+      el('div',{class:'today-action'}, p.action)),
+    el('div',{class:'today-card-act'}, primary, openBtn)
+  );
+}
 const AI_BUSY = {};   // in-flight guard, keyed by deckId|sig
 function renderLeadAICached(cur, c, ovBody, nxBody){
   ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-text'}, c.overview || 'No overview yet.'));
@@ -4635,10 +4764,10 @@ function tlNode(e, opts){
 }
 
 /* ---------- CRM section navigation ---------- */
-const SECTION_PAGE = { leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', settings:'settings-page' };
-const SECTION_VIEW = { leads:'dashboard', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', settings:'settings' };
-const NAV_TABS = [ {key:'leads',label:'Leads'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'settings',label:'Settings'} ];
-const ALL_LAYER_IDS = ['dashboard','pipeline-page','metrics-page','leaderboard-page','settings-page','tasks-page','lead-page'];
+const SECTION_PAGE = { today:'today-page', leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', settings:'settings-page' };
+const SECTION_VIEW = { today:'today', leads:'dashboard', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', settings:'settings' };
+const NAV_TABS = [ {key:'today',label:'Today'}, {key:'leads',label:'Leads'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'settings',label:'Settings'} ];
+const ALL_LAYER_IDS = ['today-page','dashboard','pipeline-page','metrics-page','leaderboard-page','settings-page','tasks-page','lead-page'];
 function hideAllSections(){ ALL_LAYER_IDS.forEach(id => { const e = document.getElementById(id); if (e){ e.style.display='none'; if (id==='dashboard') e.classList.add('is-hidden'); } }); }
 function buildNav(active){
   const chip = el('button',{class:'user-chip', type:'button'});
@@ -4672,7 +4801,8 @@ function showSection(name){
   hideAllSections();
   const page = document.getElementById(SECTION_PAGE[name]);
   page.style.display = ''; if (SECTION_PAGE[name]==='dashboard') page.classList.remove('is-hidden');
-  if (name==='leads') renderDashboard();
+  if (name==='today') renderToday();
+  else if (name==='leads') renderDashboard();
   else if (name==='pipeline') renderPipeline();
   else if (name==='dashboard') renderMetrics();
   else if (name==='tasks') renderTasksSection();
@@ -5788,7 +5918,7 @@ async function initDashboard(){
   } else {
     setSyncBadge('local');
   }
-  showSection('leads');   // render the Leads section + the top nav
+  showSection('today');   // land on the AI "start my day" briefing
   runAutoTasks();   // auto-grade calls + auto-check follow-ups in the background (throttled, silent)
   loadGActivity();  // restore cached Google activity (instant timelines)
   maybeAutoSync();  // background refresh of Gmail + Calendar matches if connected & stale
