@@ -3663,19 +3663,6 @@ function renderAutomationSettings(){
     )
   );
 }
-function openSettingsPage(tab){
-  state.view = 'settings';
-  if (tab) settingsTab = tab;
-  renderSettingsPage();
-  document.getElementById('settings-page').style.display = '';
-  window.scrollTo(0,0);
-}
-function backFromSettings(){
-  state.view = 'dashboard';
-  document.getElementById('settings-page').style.display = 'none';
-  renderDashboard();
-  window.scrollTo(0,0);
-}
 
 /* ---------- Team performance / leaderboard ---------- */
 function letterGrade(n){ if(n==null)return'—'; if(n>=93)return'A';if(n>=90)return'A-';if(n>=87)return'B+';if(n>=83)return'B';if(n>=80)return'B-';if(n>=77)return'C+';if(n>=73)return'C';if(n>=70)return'C-';if(n>=67)return'D+';if(n>=60)return'D';return'F'; }
@@ -3803,8 +3790,6 @@ function renderLeaderboard(){
   }
   body.appendChild(trends);
 }
-function openLeaderboard(){ state.view='leaderboard'; renderLeaderboard(); document.getElementById('leaderboard-page').style.display=''; window.scrollTo(0,0); }
-function backFromLeaderboard(){ state.view='dashboard'; document.getElementById('leaderboard-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
 
 /* ---------- Pipeline (deals by stage) ---------- */
 function fmtUSD(n){ return '$' + Math.round(Number(n)||0).toLocaleString(); }
@@ -3860,9 +3845,6 @@ function renderPipeline(){
   });
   body.appendChild(list);
 }
-function openPipeline(){ state.view='pipeline'; renderPipeline(); document.getElementById('pipeline-page').style.display=''; window.scrollTo(0,0); }
-function backFromPipeline(){ state.view='dashboard'; document.getElementById('pipeline-page').style.display='none'; renderDashboard(); window.scrollTo(0,0); }
-document.getElementById('pipeline-btn').addEventListener('click', openPipeline);
 document.getElementById('pipeline-back').addEventListener('click', backFromPipeline);
 
 /* ---------- Lead detail (full account record) ---------- */
@@ -3905,90 +3887,8 @@ function leadTimeline(deck, meetings, emails){
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
   return ev;
 }
-function timelineRow(e){
-  if (e.email){
-    const panel = el('div',{class:'lead-tl-email-body'}); panel.style.display='none';
-    let loaded=false, open=false;
-    const toggle = async () => {
-      open=!open; panel.style.display = open ? '' : 'none'; head.classList.toggle('open', open);
-      if (open && !loaded){
-        loaded=true; panel.textContent='Loading…';
-        let body=''; if (e.emailId) body = await fetchEmailBody(e.emailId);
-        panel.textContent = body || e.snippet || '(No preview available — open in Gmail.)';
-      }
-    };
-    var head = el('div',{class:'lead-tl-row clickable lead-tl-emailhead', onClick: toggle},
-      el('span',{class:'lead-tl-icon', html:e.icon}),
-      el('div',{class:'lead-tl-body'},
-        el('div',{class:'lead-tl-title'}, e.title),
-        el('div',{class:'lead-tl-sub'}, [e.sub, e.date ? fmtDay(e.date) : ''].filter(Boolean).join('  ·  '))),
-      el('span',{class:'lead-tl-caret', html:'▾'})
-    );
-    return el('div',{class:'lead-tl-emailwrap'}, head, panel);
-  }
-  return el('div',{class:'lead-tl-row' + (e.onClick?' clickable':''), onClick: e.onClick || null},
-    el('span',{class:'lead-tl-icon', html:e.icon}),
-    el('div',{class:'lead-tl-body'},
-      el('div',{class:'lead-tl-title'}, e.title),
-      el('div',{class:'lead-tl-sub'}, [e.sub, e.date ? fmtDay(e.date) : ''].filter(Boolean).join('  ·  ')))
-  );
-}
-async function fetchMeetingsAll(deck){
-  if (!GOOGLE_CLIENT_ID || !AUTH || !AUTH.token || Date.now() >= AUTH.expires) return [];
-  const sp = getTeam().find(p=>p.id===deck.salespersonId);
-  const calId = (sp && sp.email) || AUTH.email; const contact = (deck.contactEmail||'').trim();
-  if (!calId || !contact) return [];
-  const now = Date.now();
-  const u = 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calId) + '/events?singleEvents=true&orderBy=startTime&maxResults=25&timeMin=' + encodeURIComponent(new Date(now-1000*60*60*24*180).toISOString()) + '&timeMax=' + encodeURIComponent(new Date(now+1000*60*60*24*120).toISOString()) + '&q=' + encodeURIComponent(contact);
-  try {
-    const r = await fetch(u, { headers:{ Authorization:'Bearer ' + AUTH.token } });
-    if (!r.ok) return [];
-    const data = await r.json(); const w = contact.toLowerCase();
-    return (data.items||[]).filter(e => e.status!=='cancelled' && e.start && (e.start.dateTime||e.start.date))
-      .filter(e => (e.attendees||[]).some(a=>String(a.email||'').toLowerCase()===w) || String((e.summary||'')+(e.description||'')).toLowerCase().includes(w))
-      .map(e => ({ start: e.start.dateTime||e.start.date, title: e.summary || 'Meeting' }));
-  } catch(e){ return []; }
-}
 /* Pull recent Gmail threads with this lead's contact (read-only) onto the timeline.
    Reads the SIGNED-IN user's mailbox ('me'), so it shows email you exchanged with them. */
-async function fetchEmailsAll(deck){
-  const out = { items: [], scopeMissing: false };
-  if (!GOOGLE_CLIENT_ID || !AUTH || !AUTH.token || Date.now() >= AUTH.expires) return out;
-  const contact = (deck.contactEmail||'').trim();
-  if (!contact) return out;
-  const q = encodeURIComponent('from:'+contact+' OR to:'+contact);
-  try {
-    const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q='+q, { headers:{ Authorization:'Bearer '+AUTH.token } });
-    if (lr.status===401 || lr.status===403){ out.scopeMissing = true; return out; }
-    if (!lr.ok) return out;
-    const list = await lr.json();
-    const ids = (list.messages||[]).map(m=>m.id).slice(0,15);
-    const me = String(AUTH.email||'').toLowerCase();
-    const msgs = await Promise.all(ids.map(async id => {
-      try {
-        const mr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date', { headers:{ Authorization:'Bearer '+AUTH.token } });
-        if (!mr.ok) return null;
-        const m = await mr.json();
-        const hs = {}; ((m.payload && m.payload.headers) || []).forEach(h => { hs[String(h.name).toLowerCase()] = h.value; });
-        let date = null;
-        if (m.internalDate) date = new Date(Number(m.internalDate)).toISOString();
-        else if (hs['date']) { const d = new Date(hs['date']); if (!isNaN(d)) date = d.toISOString(); }
-        if (!date) return null;
-        return { date, subject: hs['subject'] || '(no subject)', sent: String(hs['from']||'').toLowerCase().includes(me) };
-      } catch(e){ return null; }
-    }));
-    out.items = msgs.filter(Boolean);
-    return out;
-  } catch(e){ return out; }
-}
-async function reconnectGoogle(deck){
-  try {
-    const r = await requestToken('consent');   // force the consent screen so the new Gmail-read scope is granted
-    AUTH = Object.assign({}, AUTH||{}, { token: r.access_token, expires: Date.now() + ((r.expires_in||3300)*1000) - 60000 });
-    saveAuth();
-    if (deck && state.view==='lead' && state.leadId===deck.id) renderLead(deck);
-  } catch(e){ /* user cancelled */ }
-}
 
 /* ====================================================================
    Google activity sync — connect once, then a background sweep matches
@@ -4211,22 +4111,6 @@ function openOnboardingModal(){
     openModal(node);
   };
   render();
-}
-function suggestForLead(deck, box, statusEl){
-  if (!SUPABASE_URL){ statusEl.textContent = 'Cloud isn’t configured.'; return; }
-  statusEl.textContent = 'Reading the deal and recommending the next step…';
-  const cur = DB.decks.find(d=>d.id===deck.id) || deck; const g = cur.callGrade || {};
-  const sp = getTeam().find(p=>p.id===cur.salespersonId);
-  fetch(SUPABASE_URL + '/functions/v1/recommend-action', {
-    method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ school:cur.school, contactFirst:cur.contactFirst||'', rep: sp?{name:sp.name}:null, daysQuiet:daysQuiet(cur), lastTouch:lastTouchDate(cur), followup: cur.followup?{scheduled:cur.followup.scheduled,startTime:cur.followup.startTime}:null, emailed:!!cur.emailedAt, callSummary:g.summary||'', callHeadline:g.headline||'', callImprovements:g.improvements||[], grade:g.grade||'' })
-  }).then(async r => {
-    const data = await r.json().catch(()=>({error:'Unexpected response.'}));
-    if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
-    box.querySelector('.lead-rec-body').innerHTML = '';
-    box.querySelector('.lead-rec-body').appendChild(el('div',{class:'lead-rec-text'}, data.recommendation || ''));
-    box.querySelector('.lead-rec-body').appendChild(el('button',{class:'btn sm primary', style:'margin-top:12px', onClick:()=>openEmailModal(deck)}, 'Draft the email →'));
-  }).catch(e => { statusEl.textContent = 'Couldn’t suggest: ' + (e&&e.message?e.message:e); });
 }
 function renderLeadTasks(deck){
   const card = el('div',{class:'lead-card'});
@@ -4582,8 +4466,6 @@ function tlNode(e, opts){
   if (e.note) content.appendChild(el('div',{class:'tl-note-body'}, e.note));
   return el('div',{class:'tl-item'}, node, content);
 }
-function openLead(deck, returnView){ state.leadReturn = returnView || (state.view==='pipeline'?'pipeline':'dashboard'); state.view='lead'; state.leadId=deck.id; renderLead(deck); document.getElementById('lead-page').style.display=''; window.scrollTo(0,0); }
-function backFromLead(){ document.getElementById('lead-page').style.display='none'; const rv = state.leadReturn || 'dashboard'; state.view = rv; if (rv==='pipeline') renderPipeline(); else renderDashboard(); window.scrollTo(0,0); }
 
 /* ---------- CRM section navigation ---------- */
 const SECTION_PAGE = { leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', settings:'settings-page' };
@@ -4757,37 +4639,6 @@ function buildDigest(scopeRepId){
   const ungraded = decks.filter(d => isOpenDeal(d) && d.contactEmail && !d.callGrade && !d.gradeMiss);
   return { nudges, soon, ungraded };
 }
-function digestItem(deck, metaNode, onClick){
-  const sp = getTeam().find(p=>p.id===deck.salespersonId);
-  return el('div',{class:'dg-item' + (onClick?' clickable':''), onClick: onClick || null},
-    el('div',{class:'dg-item-main'}, el('div',{class:'dg-school'}, deck.school), el('div',{class:'dg-rep'}, (sp?sp.name:'Unassigned') + (deck.contactEmail ? ('  ·  '+deck.contactEmail) : ''))),
-    metaNode
-  );
-}
-function openTodayDrawer(){
-  const dg = buildDigest();
-  const total = dg.nudges.length + dg.soon.length + dg.ungraded.length;
-  const body = el('div',{},
-    el('div',{class:'modal-h'},'Today’s focus'),
-    el('p',{class:'analysis-sub'}, total ? (total + ' thing' + (total===1?'':'s') + ' need attention across the team') : 'You’re all caught up.')
-  );
-  if (dg.nudges.length){
-    body.appendChild(el('div',{class:'dg-sec'}, el('span',{class:'dg-sec-icon nudge', html: BELL_MINI}), 'Deals to nudge (' + dg.nudges.length + ')'));
-    dg.nudges.forEach(deck => body.appendChild(digestItem(deck, el('span',{class:'dg-tag warn'}, daysQuiet(deck) + 'd quiet'), () => { closeModal(); openEmailModal(deck, {autodraft:true}); })));
-  }
-  if (dg.soon.length){
-    body.appendChild(el('div',{class:'dg-sec'}, el('span',{class:'dg-sec-icon', html: CAL_MINI}), 'Follow-ups in the next 3 days (' + dg.soon.length + ')'));
-    dg.soon.forEach(deck => { const days = Math.ceil((new Date(deck.followup.startTime).getTime() - Date.now())/86400000); body.appendChild(digestItem(deck, el('span',{class:'dg-tag'}, days===0?'today':days===1?'tomorrow':('in '+days+'d')), null)); });
-  }
-  if (dg.ungraded.length){
-    body.appendChild(el('div',{class:'dg-sec'}, el('span',{class:'dg-sec-icon', html: CHART_MINI}), 'Calls to grade (' + dg.ungraded.length + ')'));
-    dg.ungraded.forEach(deck => body.appendChild(digestItem(deck, el('span',{class:'dg-tag'}, 'analyze'), () => { closeModal(); openAnalysisDrawer(deck); })));
-  }
-  if (!total) body.appendChild(el('div',{class:'dg-empty'},'No nudges, no follow-ups in the next few days, and every call is graded. Nice work. 🎉'));
-  openModal(body, { drawer: true });
-}
-document.getElementById('today-btn').addEventListener('click', openTodayDrawer);
-document.getElementById('leaderboard-btn').addEventListener('click', openLeaderboard);
 document.getElementById('leaderboard-back').addEventListener('click', backFromLeaderboard);
 
 /* ---------- AI call analysis (Fathom transcript + summary → graded scorecard) ---------- */
@@ -4883,9 +4734,6 @@ function openAnalysisDrawer(deck){
   openModal(body, { drawer: true });
 }
 
-document.getElementById('new-deck-btn').addEventListener('click', openCreateModal);
-document.getElementById('settings-btn').addEventListener('click', openSettingsPage);
-document.getElementById('followups-btn').addEventListener('click', (e) => checkAllFollowups(e.currentTarget));
 document.getElementById('settings-back').addEventListener('click', backFromSettings);
 
 /* --- Open a deck (dashboard → presentation) --- */
@@ -5351,40 +5199,6 @@ async function checkOneFollowup(deck, token){
     return { checkedAt: new Date().toISOString(), scheduled: false, noAccess: true };
   }
 }
-async function checkAllFollowups(btn){
-  const label = btn ? btn.querySelector('.fu-btn-label') : null;
-  const setL = t => { if (label) label.textContent = t; };
-  if (!GOOGLE_CLIENT_ID){ alert('Google isn’t connected, so we can’t read calendars.'); return; }
-  if (btn) btn.disabled = true; setL('Checking…');
-  try {
-    let token;
-    try { token = await getGoogleAccessToken(); } catch(e){ setL('Follow-ups'); return; }
-    const team = getTeam();
-    const targets = currentPageDecks().filter(d => d.contactEmail && team.find(p=>p.id===d.salespersonId && p.email));
-    if (!targets.length){ setL('Follow-ups'); return; }
-    let scopeRetry = true;
-    for (let i=0;i<targets.length;i++){
-      const d = targets[i];
-      setL('Checking ' + (i+1) + '/' + targets.length + '…');
-      let fu;
-      try { fu = await checkOneFollowup(d, token); }
-      catch(e){
-        if (e && e.scope && scopeRetry){
-          scopeRetry = false;
-          try { const r = await requestToken(''); AUTH = Object.assign({}, AUTH||{}, { token:r.access_token, expires: Date.now()+((r.expires_in||3300)*1000)-60000 }); saveAuth(); token = AUTH.token; i--; continue; }
-          catch(_){ setL('Calendar access needed'); break; }
-        }
-        fu = { checkedAt:new Date().toISOString(), scheduled:false, noAccess:true };
-      }
-      if (fu && !fu.skipped){
-        const cur = DB.decks.find(x=>x.id===d.id) || d;
-        upsertDeck(Object.assign({}, cur, { followup: fu, updatedAt: new Date().toISOString() }));
-      }
-    }
-    renderDashboard();
-    setL('Follow-ups');
-  } finally { if (btn) btn.disabled = false; }
-}
 /* Silent follow-up check on load — never prompts; skips quietly if calendar access isn't granted. */
 async function autoCheckFollowups(){
   if (!GOOGLE_CLIENT_ID || !AUTH) return;
@@ -5479,21 +5293,6 @@ function plainEmailBody(deck, sp){
   const repFirst = sp ? String(sp.name).trim().split(/\s+/)[0] : '';
   const greeting = first ? ('Hi ' + first + ',') : 'Hi,';
   return greeting + '\n\n\n\n' + (repFirst || 'Thanks');
-}
-function defaultEmailBody(deck, sp){
-  const first = (deck.contactFirst || '').trim();
-  const repFirst = sp ? String(sp.name).trim().split(/\s+/)[0] : '';
-  const greeting = first ? ('Hi ' + first + ',') : 'Hi,';
-  const signoff = repFirst || 'Thanks';
-  return greeting + '\n\n' +
-    'Good talking today. Quick recap of why GearLocker fits ' + deck.school + ':\n\n' +
-    'Right now most of your gear lives on spreadsheets and in your coaches’ heads. So every spring you’re guessing at what walked off, and rebuying jerseys and pads you already owned. GearLocker puts every uniform, helmet, and ball on one screen. Coaches check gear in and out from their phone in a few taps, parents get an automatic note (with the replacement cost) the moment their kid takes something home, and you see every program in one place without chasing a single coach.\n\n' +
-    'It was built by a high school coach, so it works the way your staff already works — no new hardware, and you’re live in under 30 days.\n\n' +
-    'I’ve attached two things to dig into when you have a minute:\n' +
-    '• The walkthrough we went through\n' +
-    '• A proposal built for ' + deck.school + ', with pricing\n\n' +
-    'No rush on my end — happy to answer questions or line up next steps whenever you’re ready.\n\n' +
-    signoff;
 }
 function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function emailSignatureHtml(sp){
