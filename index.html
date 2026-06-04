@@ -4111,16 +4111,28 @@ async function syncGoogleActivity(opts){
     saveGActivity();
     // Persist the latest email + past-meeting date onto each matched deck so last-touch / nudges
     // (and the server-side daily digest) reflect synced Gmail + calendar, not just tool actions.
-    const nowMs = Date.now();
+    const nowMs = Date.now(), nowIso = new Date().toISOString();
     getDecks().forEach(d => {
       const ce = (d.contactEmail||'').toLowerCase().trim(); if (!ce) return;
       const em = byEmail[ce]||[], mt = meetingsByEmail[ce]||[];
       const lastEmail = em.length ? em[0].date : null;   // sorted desc
       const pastMt = mt.filter(m => m.start && new Date(m.start).getTime() <= nowMs);
       const lastMeeting = pastMt.length ? pastMt[0].start : null;
+      const futureMt = mt.filter(m => m.start && new Date(m.start).getTime() > nowMs).sort((a,b)=>new Date(a.start)-new Date(b.start));
+      const next = futureMt[0] || null;
       const patch = {};
       if (lastEmail && lastEmail !== d.lastEmailAt) patch.lastEmailAt = lastEmail;
       if (lastMeeting && lastMeeting !== d.lastMeetingAt) patch.lastMeetingAt = lastMeeting;
+      // Auto follow-up detection (replaces the old manual "Follow-ups" button): if this user's
+      // calendar has any history with the contact, manage the deal's follow-up status from it.
+      if (mt.length){
+        const firstCallDate = (d.callGrade && d.callGrade.meetingDate) ? d.callGrade.meetingDate : lastMeeting;
+        const fu = next
+          ? { checkedAt: nowIso, scheduled: true, startTime: next.start, title: next.title, firstCallDate: firstCallDate, auto: true }
+          : { checkedAt: nowIso, scheduled: false, firstCallDate: firstCallDate, auto: true };
+        const curFu = d.followup || {};
+        if ((curFu.scheduled||false) !== fu.scheduled || (curFu.startTime||'') !== (fu.startTime||'')) patch.followup = fu;
+      }
       if (Object.keys(patch).length) saveDeckPatch(d, patch);
     });
     return scopeMissing ? { scopeMissing:true, counts:GACTIVITY.counts } : { ok:true, counts:GACTIVITY.counts };
@@ -4600,7 +4612,6 @@ function buildNav(active){
     ),
     el('div',{class:'topnav-right'},
       (AUTH && GOOGLE_CLIENT_ID && !onboardingComplete()) ? el('button',{class:'topnav-setup', type:'button', title:'Finish setting up your account', onClick:openOnboardingModal}, el('span',{class:'topnav-setup-dot'}), 'Finish setup · ' + onboardingRemaining()) : null,
-      el('button',{class:'btn ghost sm', type:'button', title:'Check booked follow-ups on the rep’s calendar', onClick:(e)=>checkAllFollowups(e.currentTarget)}, el('span',{class:'fu-btn-label'},'Follow-ups')),
       chip,
       el('button',{class:'btn primary sm', type:'button', onClick:openCreateModal}, '+ New deck')
     )
