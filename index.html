@@ -2098,6 +2098,10 @@
   .today-summary { margin: 22px 0 20px; }
   .today-sum-text { font-size: 16px; line-height: 1.55; color: var(--ink); font-weight: 500; max-width: 760px; }
   .today-empty { font-size: 14.5px; color: var(--ink-3); line-height: 1.5; }
+  .today-head-act { display: flex; align-items: center; gap: 10px; }
+  .queue-scope { font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); padding: 6px 28px 6px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 9px center; -webkit-appearance: none; appearance: none; cursor: pointer; }
+  .queue-scope:focus { outline: none; border-color: var(--accent); }
+  .nt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .today-seq { margin: 0 0 22px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); overflow: hidden; }
   .today-seq-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); padding: 12px 16px 4px; }
   .today-seq-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-top: 1px solid var(--border); }
@@ -3140,7 +3144,7 @@ function seqState(deck){
 }
 // All decks with a sequence step due right now (for the work queue).
 function sequencesDue(){
-  return getDecks().filter(isOpenDeal).map(d => { const s = seqState(d); return (s && s.due) ? { deck:d, state:s } : null; }).filter(Boolean);
+  return getDecks().filter(isOpenDeal).filter(inMyQueue).map(d => { const s = seqState(d); return (s && s.due) ? { deck:d, state:s } : null; }).filter(Boolean);
 }
 function isRealSis(sis) { return sis && sis !== 'Other / Not sure'; }
 function fmtPayback(year1, totalReturn) {
@@ -3158,6 +3162,7 @@ function fmtMultiple(m) {
 /* ---------- State ---------- */
 const state = {
   view: 'dashboard', // 'dashboard' | 'deck'
+  queueScope: 'me',  // whose work queue to show on Today + Nudges&Tasks: 'me' | 'all' | <salespersonId>
   deckId: null,      // id of the deck currently being presented
   slide: 0,          // 0-indexed slide index in deck
   lossPct: 10,       // Single source of truth — % of gear lost per year. Set on discovery slide 4, adjustable again on report slide 7.
@@ -4443,6 +4448,31 @@ function maybeAutoSync(){
 
 /* ---------- First-run onboarding: get each rep fully set up ---------- */
 function currentRep(){ if (!AUTH || !AUTH.email) return null; const e = String(AUTH.email).toLowerCase(); return getTeam().find(p => String(p.email||'').toLowerCase() === e) || null; }
+// Whose work queue is in view (Today + Nudges & Tasks). Default: the signed-in rep's own book.
+function repUnmatched(){ return !!(AUTH && AUTH.email && !currentRep()); }   // logged in but no salesperson record matches the email
+function queueScopeId(){
+  const s = state.queueScope || 'me';
+  if (s === 'all') return null;                              // null = no owner filter (every deck)
+  if (s === 'me'){ const r = currentRep(); return r ? r.id : null; }   // unmatched login → fall back to all (with a banner)
+  return s;                                                  // a specific salesperson id
+}
+function inMyQueue(deck){ const id = queueScopeId(); return id === null ? true : deck.salespersonId === id; }
+function queueScopeLabel(){ const id = queueScopeId(); if (state.queueScope==='all'||id===null) return 'the whole team'; const p = getTeam().find(x=>x.id===id); return (currentRep() && currentRep().id===id) ? 'you' : (p ? p.name : 'this rep'); }
+// Dropdown to switch the queue between "My deals", "All deals", and a specific teammate. Re-renders the active section.
+function queueScopeSelect(){
+  const sel = el('select',{class:'queue-scope', title:'Whose deals to show'});
+  sel.appendChild(el('option',{value:'me'}, 'My deals'));
+  sel.appendChild(el('option',{value:'all'}, 'All deals'));
+  getTeam().slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).forEach(p => sel.appendChild(el('option',{value:p.id}, p.name || p.email || 'Rep')));
+  sel.value = state.queueScope || 'me';
+  sel.addEventListener('change', ()=>{ state.queueScope = sel.value; if (state.view==='today') renderToday(); else if (state.view==='tasks') renderTasksSection(); });
+  return sel;
+}
+function queueMatchBanner(){
+  return el('div',{class:'nudge-warn'},
+    el('span',{}, 'Your login (' + ((AUTH&&AUTH.email)||'') + ') isn’t linked to a salesperson yet, so “My deals” can’t filter to you — showing the whole team for now. Add yourself under Settings → Team to personalize this.'),
+    el('button',{class:'btn sm primary', type:'button', onClick:()=>openSettingsPage('team')}, 'Open Team settings'));
+}
 function ensureRep(){ let r = currentRep(); if (r) return r; if (!AUTH || !AUTH.email) return null; r = { id: uid('sp_'), name: AUTH.name || AUTH.email, email: AUTH.email, phone:'', hubspot:'' }; upsertPerson(r); return r; }
 function onboardingState(){
   const rep = currentRep();
@@ -4751,7 +4781,7 @@ function deckLatestInbound(deck){
 }
 function repliesToSend(){
   if (!(AUTH && (AUTH.gmail===true || GACTIVITY.syncedAt))) return [];
-  return getDecks().filter(isOpenDeal).map(d => ({ deck:d, email: deckLatestInbound(d) })).filter(x => x.email)
+  return getDecks().filter(isOpenDeal).filter(inMyQueue).map(d => ({ deck:d, email: deckLatestInbound(d) })).filter(x => x.email)
     .sort((a,b) => new Date(b.email.date) - new Date(a.email.date));
 }
 async function generateReply(deck, inbound){
@@ -4769,10 +4799,7 @@ async function generateReply(deck, inbound){
 function aiLoading(msg){ return el('div',{class:'lead-ai-loading'}, el('span',{class:'lead-ai-spin'}), el('span',{}, msg||'Reading the account…')); }
 /* ---------- Start-my-day AI briefing ---------- */
 function briefingCandidates(){
-  const rep = currentRep();
-  let decks = getDecks().filter(isOpenDeal);
-  const owned = rep ? decks.filter(d => d.salespersonId === rep.id) : [];
-  if (owned.length) decks = owned;   // the rep's own book (managers with no owned deals fall back to all open)
+  let decks = getDecks().filter(isOpenDeal).filter(inMyQueue);   // only the in-scope rep's book (default: signed-in rep)
   const today = new Date().toISOString().slice(0,10);
   const out = [];
   decks.forEach(d => {
@@ -4792,7 +4819,7 @@ function briefingCandidates(){
   });
   return out.sort((a,b)=>b.score-a.score).slice(0, 18);
 }
-function briefingKey(){ return 'gl_briefing_v4_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + new Date().toISOString().slice(0,10); }
+function briefingKey(){ return 'gl_briefing_v5_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + (state.queueScope||'me') + '_' + new Date().toISOString().slice(0,10); }
 async function generateBriefing(cands){
   const rep = currentRep();
   const payload = {
@@ -4840,12 +4867,12 @@ function renderToday(force){
   const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   body.appendChild(el('div',{class:'today-head'},
     el('div',{}, el('h1',{class:'today-title'}, greet + (first ? (', ' + first) : '')), el('p',{class:'today-date'}, new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'}))),
-    el('button',{class:'btn ghost sm', type:'button', onClick:()=>renderToday(true)}, '↻ Refresh')));
+    el('div',{class:'today-head-act'}, queueScopeSelect(), el('button',{class:'btn ghost sm', type:'button', onClick:()=>renderToday(true)}, '↻ Refresh'))));
+  if (repUnmatched()) body.appendChild(queueMatchBanner());
   const sumEl = el('div',{class:'today-summary'}); body.appendChild(sumEl);
 
-  // Sequence steps due today — surfaced directly, pre-drafted, independent of the AI briefing.
-  const myId = AUTH && currentRep() ? currentRep().id : null;
-  const seqDue = sequencesDue().filter(x => !myId || x.deck.salespersonId === myId);
+  // Sequence steps due today — surfaced directly, pre-drafted, independent of the AI briefing (already scoped to the queue).
+  const seqDue = sequencesDue();
   if (seqDue.length){
     const seqWrap = el('div',{class:'today-seq'});
     seqWrap.appendChild(el('div',{class:'today-seq-h'}, '↻ Sequence steps due (' + seqDue.length + ')'));
@@ -5235,7 +5262,7 @@ function buildNav(active){
     chip.title = 'Signed in as ' + AUTH.email + ' — click to sign out';
     chip.onclick = () => { if (confirm('Sign out of GearLocker?')) signOut(); };
   } else chip.style.display='none';
-  const decks = getDecks();
+  const decks = getDecks().filter(inMyQueue);   // badge reflects the in-scope rep's own queue
   const nudgeN = decks.filter(dealNeedsNudge).length;
   const taskN = decks.reduce((a,d)=> a + deckTasks(d).filter(t=>!t.done).length, 0);
   const tasksCount = nudgeN + taskN + repliesToSend().length;
@@ -5282,13 +5309,15 @@ function backFromLead(){ showSection(state.leadReturn || 'leads'); }
 /* ---------- Nudges & Tasks section ---------- */
 function renderTasksSection(){
   const body = document.getElementById('tasks-body'); body.innerHTML = '';
-  const decks = getDecks(), team = getTeam();
+  const team = getTeam();
+  const decks = getDecks().filter(inMyQueue);   // only the in-scope rep's book (default: signed-in rep)
   const repName = id => (team.find(p=>p.id===id)||{}).name || 'Unassigned';
   const openTasks = [];
   decks.forEach(d => deckTasks(d).filter(t=>!t.done).forEach(t => openTasks.push({ deck:d, task:t })));
   openTasks.sort((a,b)=> String(a.task.due||'9999-99').localeCompare(String(b.task.due||'9999-99')));
   const nudges = decks.filter(dealNeedsNudge).sort((a,b)=> (daysQuiet(b)||0) - (daysQuiet(a)||0));
-  body.appendChild(el('h1',{class:'lb-title'},'Nudges & Tasks'));
+  body.appendChild(el('div',{class:'nt-head'}, el('h1',{class:'lb-title'},'Nudges & Tasks'), queueScopeSelect()));
+  if (repUnmatched()) body.appendChild(queueMatchBanner());
   if (AUTH && GOOGLE_CLIENT_ID && !(AUTH.gmail === true || GACTIVITY.syncedAt)){
     body.appendChild(el('div',{class:'nudge-warn'},
       el('span',{}, 'Nudges may be inaccurate — without Gmail connected, your email replies and meetings don’t count as contact, so deals can look quieter than they are.'),
