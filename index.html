@@ -2107,7 +2107,28 @@
   .today-seq-sub { color: var(--ink-3); }
   .today-seq-meta { font-size: 12px; color: var(--ink-4); margin-top: 2px; }
   .today-list { display: flex; flex-direction: column; gap: 10px; }
-  .today-card { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .today-card { position: relative; display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .today-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 7px; }
+  .today-chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--wash); color: var(--ink-3); white-space: nowrap; }
+  .today-chip.tc-reply { background: rgba(238,54,47,.12); color: var(--accent); }
+  .today-chip.tc-task { background: rgba(26,86,176,.12); color: #1a56b0; }
+  .today-chip.tc-meet { background: rgba(31,157,85,.14); color: #1f7d45; }
+  .today-chip.tc-amt { background: var(--ink); color: #fff; }
+  .today-dismiss { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--ink-4); font-size: 14px; line-height: 1; cursor: pointer; padding: 4px 6px; border-radius: 6px; opacity: 0; transition: opacity .12s; }
+  .today-card:hover .today-dismiss { opacity: 1; }
+  .today-dismiss:hover { color: var(--accent); background: var(--wash); }
+  .today-snooze { position: relative; }
+  .today-snooze > .btn { width: 100%; }
+  .today-snooze-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; min-width: 110px; overflow: hidden; }
+  .today-snooze-menu button { font: inherit; font-size: 13px; text-align: left; padding: 8px 12px; background: none; border: none; cursor: pointer; color: var(--ink); }
+  .today-snooze-menu button:hover { background: var(--wash); color: var(--accent); }
+  /* Today drawer */
+  .today-drawer .analysis-sub { margin: 2px 0 12px; }
+  .td-priority { background: var(--wash); border-radius: var(--radius-sm); padding: 12px 14px; margin: 8px 0 12px; }
+  .td-priority-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin-bottom: 6px; }
+  .td-why { font-size: 13.5px; color: var(--ink-3); line-height: 1.5; margin-bottom: 6px; }
+  .td-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .td-ai { margin-bottom: 12px; }
   .today-rank { width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
   .today-card-body { flex: 1 1 auto; min-width: 0; }
   .today-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
@@ -4740,6 +4761,7 @@ function briefingCandidates(){
   const today = new Date().toISOString().slice(0,10);
   const out = [];
   decks.forEach(d => {
+    if (d.briefHide && d.briefHide.until && d.briefHide.until > today) return;   // dismissed/snoozed from Today
     const inbound = deckLatestInbound(d);
     const tasksDue = deckTasks(d).filter(t => !t.done && t.due && String(t.due) <= today);
     const fuToday = hasUpcomingFollowup(d) && String(d.followup.startTime).slice(0,10) <= today;
@@ -4755,7 +4777,7 @@ function briefingCandidates(){
   });
   return out.sort((a,b)=>b.score-a.score).slice(0, 18);
 }
-function briefingKey(){ return 'gl_briefing_v3_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + new Date().toISOString().slice(0,10); }
+function briefingKey(){ return 'gl_briefing_v4_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + new Date().toISOString().slice(0,10); }
 async function generateBriefing(cands){
   const rep = currentRep();
   const payload = {
@@ -4763,9 +4785,13 @@ async function generateBriefing(cands){
     today: new Date().toISOString().slice(0,10),
     candidates: await Promise.all(cands.map(async c => {
       const ems = cachedEmailsFor(c.deck);
+      // full bodies of the recent emails (esp. what WE sent) so the AI never re-recommends something already sent
+      const recentEmails = await Promise.all(ems.slice(0,5).map(async e => {
+        let body = '';
+        if (e.id) body = await fetchEmailBody(e.id).catch(()=>'');
+        return { date:String(e.date).slice(0,10), dir:e.sent?'sent':'received', subject:e.subject||'', body:String(body || e.snippet || '').slice(0, 1200) };
+      }));
       const latest = ems[0];
-      let latestBody = '';
-      if (latest && latest.id) latestBody = await fetchEmailBody(latest.id).catch(()=>'');   // the body driving the signal
       return {
         id: c.deck.id, school: c.deck.school,
         contact: [c.deck.contactFirst, c.deck.contactLast].filter(Boolean).join(' '),
@@ -4774,11 +4800,10 @@ async function generateBriefing(cands){
         daysQuiet: daysQuiet(c.deck),
         hasReply: !!c.inbound,
         lastEmail: latest ? { date:String(latest.date).slice(0,10), dir:latest.sent?'sent':'received', subject:latest.subject||'' } : null,
-        lastEmailBody: String(latestBody || (latest && latest.snippet) || '').slice(0, 1600),
         tasksDue: c.tasksDue.map(t => t.text), followupToday: c.fuToday,
         lastGrade: (c.deck.callGrade && c.deck.callGrade.grade) || '',
         emailed: c.deck.emailedAt ? String(c.deck.emailedAt).slice(0,10) : '',
-        recentEmails: ems.slice(0,6).map(e => ({ date:String(e.date).slice(0,10), dir:e.sent?'sent':'received', subject:e.subject||'' })),
+        recentEmails: recentEmails,
         notes: deckActivities(c.deck).filter(a => a.type==='note' || a.type==='call').slice(-3).map(a => ({ date:String(a.date).slice(0,10), type:a.type, text:String(a.text||'').slice(0,160) })),
         nextStep: (c.deck.ai && c.deck.ai.recommendation) || ''
       };
@@ -4850,20 +4875,85 @@ function renderToday(force){
     if (state.view === 'today'){ sumEl.innerHTML = ''; sumEl.appendChild(el('div',{class:'today-empty'}, 'Couldn’t build the briefing — ' + (e && e.message ? e.message : e))); }
   });
 }
+// The single best one-click action button for a priority (reused on the card and in the drawer).
+function todayActionButton(p, cand){
+  const deck = cand.deck;
+  const cls = 'btn sm primary';
+  if (p.actionType === 'reply' && cand.inbound) return el('button',{class:cls, type:'button', onClick:()=>openEmailModal(deck, { attach:false, replyTo:{ id:cand.inbound.id, subject:cand.inbound.subject, snippet:cand.inbound.snippet, date:cand.inbound.date } })}, 'Draft reply');
+  if (p.actionType === 'email') return el('button',{class:cls, type:'button', onClick:()=>openEmailModal(deck, { autodraft:true })}, 'Draft email');
+  if (p.actionType === 'task') return el('button',{class:cls, type:'button', onClick:()=>{ closeModal(); state.leadTab='tasks'; openLead(deck,'today'); }}, 'Work the task');
+  if (p.actionType === 'call') return el('button',{class:cls, type:'button', onClick:()=>{ closeModal(); openLead(deck,'today'); }}, 'Open to call');
+  if (p.actionType === 'meeting') return el('button',{class:cls, type:'button', onClick:()=>{ closeModal(); openLead(deck,'today'); }}, 'Open to prep');
+  return null;
+}
+function todayChips(cand){
+  const chips = [];
+  if (cand.inbound) chips.push(['reply','Reply waiting']);
+  if (cand.tasksDue && cand.tasksDue.length) chips.push(['task', cand.tasksDue.length + (cand.tasksDue.length>1?' tasks due':' task due')]);
+  if (cand.fuToday) chips.push(['meet','Follow-up today']);
+  const q = daysQuiet(cand.deck);
+  if (cand.nudge && q != null) chips.push(['quiet', q + 'd quiet']);
+  const amt = dealAmount(cand.deck); if (amt) chips.push(['amt', '$' + amt.toLocaleString()]);
+  return chips.length ? el('div',{class:'today-chips'}, ...chips.map(c => el('span',{class:'today-chip tc-'+c[0]}, c[1]))) : null;
+}
+function todaySnooze(deck, days, label){
+  const until = new Date(Date.now() + days*86400000).toISOString().slice(0,10);
+  saveDeckPatch(deck, { briefHide: { until: until, by: (AUTH&&AUTH.email)||'' } });
+  if (state.view === 'today') renderToday();   // recompute candidates; snoozed deck drops out (reuses AI cache, no refetch)
+}
+function snoozeControl(deck){
+  const menu = el('div',{class:'today-snooze-menu', style:'display:none'},
+    el('button',{type:'button', onClick:()=>todaySnooze(deck,3)},'3 days'),
+    el('button',{type:'button', onClick:()=>todaySnooze(deck,7)},'1 week'),
+    el('button',{type:'button', onClick:()=>todaySnooze(deck,14)},'2 weeks'));
+  const btn = el('button',{class:'btn sm ghost', type:'button', onClick:(e)=>{ e.stopPropagation(); menu.style.display = (menu.style.display==='none'?'':'none'); }}, 'Snooze ▾');
+  return el('div',{class:'today-snooze'}, btn, menu);
+}
 function todayCard(p, cand, rank){
   const deck = cand.deck;
-  let primary = null;
-  if (p.actionType === 'reply' && cand.inbound) primary = el('button',{class:'btn sm primary', type:'button', onClick:()=>openEmailModal(deck, { attach:false, replyTo:{ id:cand.inbound.id, subject:cand.inbound.subject, snippet:cand.inbound.snippet, date:cand.inbound.date } })}, 'Draft reply');
-  else if (p.actionType === 'email') primary = el('button',{class:'btn sm primary', type:'button', onClick:()=>openEmailModal(deck, { autodraft:true })}, 'Draft email');
-  const openBtn = el('button',{class:'btn sm' + (primary ? ' ghost' : ' primary'), type:'button', onClick:()=>openLead(deck, 'today')}, primary ? 'Open' : 'Open lead');
+  const primary = todayActionButton(p, cand);
+  const openBtn = el('button',{class:'btn sm' + (primary ? ' ghost' : ' primary'), type:'button', onClick:()=>openTodayDrawer(deck, p, cand)}, 'Open');
   return el('div',{class:'today-card'},
     el('div',{class:'today-rank'}, String(rank)),
     el('div',{class:'today-card-body'},
-      el('div',{class:'today-card-top'}, el('span',{class:'today-school', onClick:()=>openLead(deck,'today')}, deck.school), el('span',{class:'stage-chip stage-'+dealStage(deck)}, stageMeta(dealStage(deck)).short)),
+      el('div',{class:'today-card-top'}, el('span',{class:'today-school', onClick:()=>openTodayDrawer(deck,p,cand)}, deck.school), el('span',{class:'stage-chip stage-'+dealStage(deck)}, stageMeta(dealStage(deck)).short)),
+      todayChips(cand),
       el('div',{class:'today-why'}, p.why),
       el('div',{class:'today-action'}, p.action)),
-    el('div',{class:'today-card-act'}, primary, openBtn)
+    el('div',{class:'today-card-act'}, primary, openBtn, snoozeControl(deck)),
+    el('button',{class:'today-dismiss', type:'button', title:'Dismiss for today', onClick:()=>todaySnooze(deck,1)}, '✕')
   );
+}
+// Side drawer: work a priority without leaving the Today list — AI overview, the move, one-click action, view-lead link.
+function openTodayDrawer(deck, p, cand){
+  const cur = DB.decks.find(d=>d.id===deck.id) || deck;
+  cand = cand || { deck: cur, inbound: deckLatestInbound(cur), tasksDue: deckTasks(cur).filter(t=>!t.done && t.due && String(t.due)<=new Date().toISOString().slice(0,10)), fuToday: false, nudge: dealNeedsNudge(cur) };
+  const sp = getTeam().find(x=>x.id===cur.salespersonId);
+  const body = el('div',{class:'today-drawer'});
+  body.appendChild(el('div',{class:'modal-h'}, cur.school));
+  body.appendChild(el('p',{class:'analysis-sub'}, [stageMeta(dealStage(cur)).label, [cur.contactFirst,cur.contactLast].filter(Boolean).join(' ') || cur.contactEmail || 'no contact', sp?sp.name:null].filter(Boolean).join('  ·  ')));
+  const chips = todayChips(cand); if (chips) body.appendChild(chips);
+  if (p && (p.why || p.action)) body.appendChild(el('div',{class:'td-priority'},
+    el('div',{class:'td-priority-h'},'Today’s priority'),
+    p.why ? el('div',{class:'td-why'}, p.why) : null,
+    p.action ? el('div',{class:'today-action'}, p.action) : null));
+  const primary = todayActionButton(p || { actionType:'open' }, cand);
+  const act = el('div',{class:'td-actions'});
+  if (primary) act.appendChild(primary);
+  act.appendChild(el('button',{class:'btn sm' + (primary?' ghost':' primary'), type:'button', onClick:()=>{ closeModal(); openLead(cur,'today'); }}, 'View full lead →'));
+  act.appendChild(el('button',{class:'btn sm ghost', type:'button', onClick:()=>{ todaySnooze(cur,3); closeModal(); }}, 'Snooze 3 days'));
+  body.appendChild(act);
+  const ovCard = el('div',{class:'lead-card td-ai'}, el('div',{class:'lead-card-h'},'AI overview'));
+  const ovBody = el('div',{class:'lead-ai-body'}); ovCard.appendChild(ovBody);
+  const nxCard = el('div',{class:'lead-card td-ai'}, el('div',{class:'lead-card-h'},'AI recommended next step'));
+  const nxBody = el('div',{class:'lead-ai-body'}); nxCard.appendChild(nxBody);
+  body.appendChild(ovCard); body.appendChild(nxCard);
+  paintLeadAI(cur, ovBody, nxBody);
+  const actCard = el('div',{class:'lead-card td-ai'}, el('div',{class:'lead-card-h'},'Recent activity'));
+  const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
+  fillTimeline(mini, cur, { limit:6, expandable:false });
+  body.appendChild(actCard);
+  openModal(body, { drawer:true });
 }
 const AI_BUSY = {};   // in-flight guard, keyed by deckId|sig
 function renderLeadAICached(cur, c, ovBody, nxBody){
@@ -4884,13 +4974,15 @@ function paintLeadAI(deck, ovBody, nxBody){
   AI_BUSY[key] = true;
   generateLeadAI(cur).then(data => {
     delete AI_BUSY[key];
-    if (data && data.overview){
-      saveDeckPatch(cur, { ai: { sig, overview:data.overview, recommendation:data.recommendation||'', emailSubject:data.emailSubject||'', emailBody:data.emailBody||'', at:new Date().toISOString() } });
-    }
-    if (state.view==='lead' && state.leadId===cur.id && (state.leadTab||'overview')==='overview') renderLead(cur);
+    const fresh = (data && data.overview)
+      ? { sig, overview:data.overview, recommendation:data.recommendation||'', emailSubject:data.emailSubject||'', emailBody:data.emailBody||'', at:new Date().toISOString() }
+      : null;
+    if (fresh) saveDeckPatch(cur, { ai: fresh });
+    // repaint the exact nodes we were given (works in the lead view AND the Today drawer), if still on screen
+    if (fresh && ovBody.isConnected) renderLeadAICached(DB.decks.find(d=>d.id===cur.id)||cur, fresh, ovBody, nxBody);
   }).catch(e => {
     delete AI_BUSY[key];
-    if (state.view==='lead' && state.leadId===cur.id){
+    if (ovBody.isConnected){
       ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-err'}, 'Couldn’t generate — ' + (e&&e.message?e.message:e)));
       nxBody.innerHTML='';
     }
