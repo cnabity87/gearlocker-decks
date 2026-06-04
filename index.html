@@ -2122,6 +2122,21 @@
   .today-snooze-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,.12); display: flex; flex-direction: column; min-width: 110px; overflow: hidden; }
   .today-snooze-menu button { font: inherit; font-size: 13px; text-align: left; padding: 8px 12px; background: none; border: none; cursor: pointer; color: var(--ink); }
   .today-snooze-menu button:hover { background: var(--wash); color: var(--accent); }
+  .today-snooze-dwrap { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink); }
+  .today-snooze-date { font: inherit; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; width: 130px; }
+  /* progress + group headers */
+  .today-progress { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .today-prog-bar { flex: 1 1 auto; height: 7px; border-radius: 4px; background: var(--wash); overflow: hidden; max-width: 360px; }
+  .today-prog-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
+  .today-prog-txt { font-size: 12.5px; font-weight: 600; color: var(--ink-4); white-space: nowrap; }
+  .today-group-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin: 22px 0 4px; }
+  .today-group-h:first-child { margin-top: 4px; }
+  .today-group-n { font-size: 11px; background: var(--wash); color: var(--ink-3); border-radius: 999px; padding: 1px 8px; }
+  /* undo toast */
+  .gl-toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px); z-index: 999; display: flex; align-items: center; gap: 14px; background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 500; padding: 11px 16px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.22); opacity: 0; transition: opacity .2s, transform .2s; max-width: 92vw; }
+  .gl-toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .gl-toast-btn { background: none; border: none; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; flex-shrink: 0; }
+  .gl-toast-btn:hover { color: #fff; opacity: .85; }
   /* Today drawer */
   .today-drawer .analysis-sub { margin: 2px 0 12px; }
   .td-priority { background: var(--wash); border-radius: var(--radius-sm); padding: 12px 14px; margin: 8px 0 12px; }
@@ -4855,9 +4870,32 @@ function renderToday(force){
     sumEl.innerHTML = ''; listEl.innerHTML = '';
     if (data.summary) sumEl.appendChild(el('div',{class:'today-sum-text'}, data.summary));
     const byId = {}; cands.forEach(c => byId[c.deck.id] = c);
-    const pris = (data.priorities || []).filter(p => byId[p.id]);
-    pris.forEach((p, i) => listEl.appendChild(todayCard(p, byId[p.id], i+1)));
-    if (!pris.length) listEl.appendChild(el('div',{class:'today-empty'}, 'Open your leads to keep moving.'));
+    const allPris = (data.priorities || []);
+    const pris = allPris.filter(p => byId[p.id]);
+    // progress — a priority counts as "cleared" once it's no longer a live candidate (replied/dismissed/snoozed/resolved)
+    const total = allPris.length, done = Math.max(0, total - pris.length);
+    if (total){
+      const pct = Math.round(done/total*100);
+      sumEl.appendChild(el('div',{class:'today-progress'},
+        el('div',{class:'today-prog-bar'}, el('div',{class:'today-prog-fill', style:'width:'+pct+'%'})),
+        el('div',{class:'today-prog-txt'}, done>=total ? 'All cleared — nice work 🎉' : ('Cleared ' + done + ' of ' + total + ' today'))));
+    }
+    if (!pris.length){ listEl.appendChild(el('div',{class:'today-empty'}, total ? 'That’s everything for today. 🎉' : 'Open your leads to keep moving.')); return; }
+    // group by type, keeping each card's overall AI rank
+    const ranked = pris.map(p => ({ p, cand: byId[p.id], rank: allPris.indexOf(p) + 1 }));
+    const groups = [ { key:'waiting', label:'Waiting on you', items:[] }, { key:'tasks', label:'Tasks & follow-ups due', items:[] }, { key:'cold', label:'Going cold', items:[] } ];
+    ranked.forEach(r => {
+      const a = r.p.actionType, c = r.cand;
+      let g = 'cold';
+      if (a === 'reply' || c.inbound) g = 'waiting';
+      else if (a === 'task' || a === 'call' || a === 'meeting' || (c.tasksDue && c.tasksDue.length) || c.fuToday) g = 'tasks';
+      groups.find(x => x.key === g).items.push(r);
+    });
+    groups.forEach(g => {
+      if (!g.items.length) return;
+      listEl.appendChild(el('div',{class:'today-group-h'}, g.label, el('span',{class:'today-group-n'}, String(g.items.length))));
+      g.items.forEach(r => listEl.appendChild(todayCard(r.p, r.cand, r.rank)));
+    });
   };
 
   let cached = null;
@@ -4896,18 +4934,41 @@ function todayChips(cand){
   const amt = dealAmount(cand.deck); if (amt) chips.push(['amt', '$' + amt.toLocaleString()]);
   return chips.length ? el('div',{class:'today-chips'}, ...chips.map(c => el('span',{class:'today-chip tc-'+c[0]}, c[1]))) : null;
 }
-function todaySnooze(deck, days, label){
-  const until = new Date(Date.now() + days*86400000).toISOString().slice(0,10);
+function applyBriefHide(deck, until, verb){
+  const cur = DB.decks.find(x=>x.id===deck.id) || deck;
+  const prev = cur.briefHide || null;                          // capture for undo
   saveDeckPatch(deck, { briefHide: { until: until, by: (AUTH&&AUTH.email)||'' } });
-  if (state.view === 'today') renderToday();   // recompute candidates; snoozed deck drops out (reuses AI cache, no refetch)
+  if (state.view === 'today') renderToday();                   // recompute candidates; hidden deck drops out (reuses AI cache, no refetch)
+  const when = (verb === 'Dismissed') ? 'today' : ('until ' + fmtDay(until));
+  showToast((verb || 'Snoozed') + ' ' + deck.school + ' · ' + when, { label:'Undo', onClick:()=>{
+    saveDeckPatch(deck, { briefHide: prev });
+    if (state.view === 'today') renderToday();
+  }});
 }
+function todaySnooze(deck, days){ const until = new Date(Date.now() + days*86400000).toISOString().slice(0,10); applyBriefHide(deck, until, days <= 1 ? 'Dismissed' : 'Snoozed'); }
+function todaySnoozeUntil(deck, untilStr){ if (untilStr) applyBriefHide(deck, untilStr, 'Snoozed'); }
 function snoozeControl(deck){
   const menu = el('div',{class:'today-snooze-menu', style:'display:none'},
     el('button',{type:'button', onClick:()=>todaySnooze(deck,3)},'3 days'),
     el('button',{type:'button', onClick:()=>todaySnooze(deck,7)},'1 week'),
     el('button',{type:'button', onClick:()=>todaySnooze(deck,14)},'2 weeks'));
+  const dInput = el('input',{type:'date', class:'today-snooze-date', min: new Date(Date.now()+86400000).toISOString().slice(0,10)});
+  dInput.addEventListener('click', e=>e.stopPropagation());
+  dInput.addEventListener('change', ()=>{ if (dInput.value) todaySnoozeUntil(deck, dInput.value); });
+  menu.appendChild(el('label',{class:'today-snooze-dwrap'}, el('span',{}, 'Until…'), dInput));
   const btn = el('button',{class:'btn sm ghost', type:'button', onClick:(e)=>{ e.stopPropagation(); menu.style.display = (menu.style.display==='none'?'':'none'); }}, 'Snooze ▾');
   return el('div',{class:'today-snooze'}, btn, menu);
+}
+let _glToastTimer = null;
+function showToast(msg, opts){
+  opts = opts || {};
+  const existing = document.getElementById('gl-toast'); if (existing) existing.remove();
+  const t = el('div',{id:'gl-toast', class:'gl-toast'}, el('span',{}, msg));
+  if (opts.label) t.appendChild(el('button',{class:'gl-toast-btn', type:'button', onClick:()=>{ try{ opts.onClick && opts.onClick(); }catch(e){} t.remove(); }}, opts.label));
+  document.body.appendChild(t);
+  requestAnimationFrame(()=> t.classList.add('show'));
+  clearTimeout(_glToastTimer);
+  _glToastTimer = setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>{ if(t.parentNode) t.remove(); }, 250); }, opts.ms || 6000);
 }
 function todayCard(p, cand, rank){
   const deck = cand.deck;
