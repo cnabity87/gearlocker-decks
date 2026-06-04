@@ -4585,14 +4585,17 @@ function leadTimeline(deck, meetings, emails){
     if (t.createdAt) ev.push({ date:t.createdAt, icon:TL_ICON.check, title:'Task created', sub:t.text, del:()=>{ deleteTask(deck, t.id); rerender(); }, delMsg:'Delete this task?' });
     if (t.done && t.doneAt) ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task completed', sub:t.text });
   });
+  const loggedEmailIds = new Set(deckActivities(deck).filter(a => a.type==='email' && a.emailId).map(a => a.emailId));   // sent-from-app emails (to dedupe vs Gmail sync)
   deckActivities(deck).forEach(a => {
     const who = a.by ? (' · ' + String(a.by).split(/\s+/)[0]) : '';
     if (a.type==='note') ev.push({ date:a.date, icon:TL_ICON.note, title:'Note' + who, note:a.text, del:()=>{ deleteActivity(deck, a.id); rerender(); }, delMsg:'Delete this note?' });
     else if (a.type==='call') ev.push({ date:a.date, icon:TL_ICON.phone, title:'Call logged' + who, note:a.text, del:()=>{ deleteActivity(deck, a.id); rerender(); }, delMsg:'Delete this logged call?' });
+    else if (a.type==='email') ev.push({ date:a.date, icon:TL_ICON.mail, title:'Email sent' + who, sub: (a.text || '(no subject)') + '  ·  You → ' + (deck.contactFirst || 'contact'), email:true, localBody: a.body || '', del:()=>{ deleteActivity(deck, a.id); rerender(); }, delMsg:'Remove this sent email from the timeline?' });
   });
   (Array.isArray(deck.history) ? deck.history : []).forEach(h => ev.push({ date:h.at, icon:TL_ICON.log, title:h.detail || 'Updated', sub:(h.by ? String(h.by).split(/\s+/)[0] : '') + '  ·  log', muted:true, del:()=>{ deleteHistory(deck, h); rerender(); }, delMsg:'Remove this entry from the timeline? (If it was a stage change, set the stage back with the dropdown up top so the AI re-reads it.)' }));
   (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
-  (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }));
+  (emails||[]).forEach(m => { if (m.id && loggedEmailIds.has(m.id)) return;   // already shown as a sent-from-app email
+    ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }); });
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
   return ev;
 }
@@ -4666,18 +4669,19 @@ async function syncGoogleActivity(opts){
     // ---- Gmail: targeted OR-queries by known contacts, then header metadata ----
     if (contacts.length){
       const ids = new Set();
-      for (let i=0;i<contacts.length;i+=18){
-        const chunk = contacts.slice(i,i+18);
+      // Smaller chunks + more results per query → fewer emails for a busy contact get crowded out of the 250-result page.
+      for (let i=0;i<contacts.length;i+=10){
+        const chunk = contacts.slice(i,i+10);
         const q = chunk.map(e=>'from:'+e+' OR to:'+e).join(' OR ');
         try {
-          const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q='+encodeURIComponent(q), { headers:{ Authorization:'Bearer '+token } });
+          const lr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=250&q='+encodeURIComponent(q), { headers:{ Authorization:'Bearer '+token } });
           if (lr.status===401 || lr.status===403){ scopeMissing = true; break; }
           if (lr.ok){ const j = await lr.json(); (j.messages||[]).forEach(m=>ids.add(m.id)); }
         } catch(e){}
-        prog('Scanning email… '+Math.min(i+18,contacts.length)+'/'+contacts.length+' contacts');
+        prog('Scanning email… '+Math.min(i+10,contacts.length)+'/'+contacts.length+' contacts');
       }
       if (!scopeMissing){
-        const idArr = [...ids].slice(0,700); const me = String(AUTH.email||'').toLowerCase();
+        const idArr = [...ids].slice(0,1200); const me = String(AUTH.email||'').toLowerCase();
         for (let i=0;i<idArr.length;i+=10){
           const metas = await Promise.all(idArr.slice(i,i+10).map(async id => {
             try { const mr = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Date', { headers:{ Authorization:'Bearer '+token } }); return mr.ok ? await mr.json() : null; }
@@ -5701,7 +5705,11 @@ function tlNode(e, opts){
     let loaded=false, open=false;
     head.addEventListener('click', async () => {
       open=!open; panel.style.display = open ? '' : 'none'; head.classList.toggle('open', open);
-      if (open && !loaded){ loaded=true; panel.textContent='Loading…'; let b=''; if (e.emailId) b=await fetchEmailBody(e.emailId); panel.textContent = b || e.snippet || '(No preview available.)'; }
+      if (open && !loaded){
+        loaded=true;
+        if (e.localBody != null){ panel.textContent = e.localBody || '(No body.)'; }   // app-sent email: body already on hand
+        else { panel.textContent='Loading…'; let b=''; if (e.emailId) b=await fetchEmailBody(e.emailId); panel.textContent = b || e.snippet || '(No preview available.)'; }
+      }
     });
   } else if (e.onClick){ head.classList.add('clickable'); head.addEventListener('click', e.onClick); }
   if (e.note) content.appendChild(el('div',{class:'tl-note-body'}, e.note));
@@ -6824,9 +6832,14 @@ function openEmailModal(deck, opts){
         method:'POST', headers:{ Authorization:'Bearer ' + token, 'Content-Type':'application/json' }, body: JSON.stringify({ raw: raw })
       });
       if (!r.ok) throw new Error('Gmail ' + r.status + ': ' + (await r.text()));
+      const sendData = await r.json().catch(()=>({}));   // { id, threadId } from Gmail
       const cur = DB.decks.find(d => d.id === deck.id) || deck;
       const now = new Date().toISOString();
-      const patch = { contactEmail: to, lastEmailAt: now, updatedAt: now };
+      // Log the sent email onto the timeline immediately (persists on the deck; dedupes against the
+      // Gmail sync later by message id, so it shows right away and never double-counts).
+      const sentSubject = subjInput.value.trim() || ('GearLocker for ' + deck.school);
+      const emailAct = { id: uid('a_'), type:'email', date: now, dir:'sent', text: sentSubject, body: bodyArea.value, emailId: (sendData && sendData.id) || '', by:(AUTH&&AUTH.name)||'' };
+      const patch = { contactEmail: to, lastEmailAt: now, updatedAt: now, activities: deckActivities(cur).concat([emailAct]) };
       if (wantDeck) patch.emailedAt = now;   // attaching the presentation marks the "deck sent" milestone
       if (opts.replyTo && opts.replyTo.id) patch.replyDoneId = opts.replyTo.id;   // clear it from the reply queue
       upsertDeck(Object.assign({}, cur, patch));
