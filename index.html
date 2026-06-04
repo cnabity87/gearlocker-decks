@@ -3407,9 +3407,10 @@ async function sb(path, opts){
     headers: Object.assign({ apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + bearer, 'Content-Type':'application/json' }, (opts && opts.headers) || {})
   }));
   let r = await send(userToken || SUPABASE_ANON_KEY);
-  if (r.status === 401 && userToken){               // session rejected → refresh once, then retry; else fall back to anon
-    const s = await sbRefresh();
-    r = await send((s && s.access_token) || SUPABASE_ANON_KEY);
+  if (r.status === 401 || r.status === 403){          // blocked (e.g. RLS rejecting the anon key) → (re)establish a session and retry once
+    let s = userToken ? await sbRefresh() : null;
+    if (!(s && s.access_token)){ try { if (await ensureSupabaseSession()) s = SB_SESSION; } catch(e){} }
+    if (s && s.access_token) r = await send(s.access_token);
   }
   if (!r.ok) throw new Error('Supabase ' + r.status + ': ' + (await r.text()));
   return r;
@@ -6347,7 +6348,7 @@ async function getGoogleAccessToken(){
 /* ---------- Supabase session bridge: Google ID token (One Tap / FedCM) → Supabase JWT ----------
    Separate from the access-token sign-in above (which stays as-is for identity + Gmail). This only
    establishes the per-user Supabase session used to authenticate DB calls. Silent when possible. */
-let gisIdReady = false, gisPending = null;
+let gisIdReady = false, gisPending = null, sbSessionInFlight = null;
 function initGisId(){
   if (gisIdReady) return true;
   if (!(window.google && google.accounts && google.accounts.id) || !GOOGLE_CLIENT_ID) return false;
@@ -6366,12 +6367,14 @@ function initGisId(){
 }
 async function ensureSupabaseSession(){
   if (sbSessionActive() && await sbAuthToken()) return true;   // already have a live session
+  if (sbSessionInFlight) return sbSessionInFlight;             // one establishment at a time (no duplicate popups)
   if (!initGisId()) return false;
-  return await new Promise((resolve)=>{
+  sbSessionInFlight = new Promise((resolve)=>{
     gisPending = resolve;
-    try { google.accounts.id.prompt(); } catch(e){ gisPending=null; resolve(false); return; }
-    setTimeout(()=>{ if (gisPending){ const cb=gisPending; gisPending=null; cb(false); } }, 6000);
-  });
+    try { google.accounts.id.prompt(); } catch(e){ resolve(false); return; }
+    setTimeout(()=>resolve(false), 8000);
+  }).then((v)=>{ sbSessionInFlight = null; return v; });
+  return sbSessionInFlight;
 }
 function renderSecureSessionButton(container){
   if (!initGisId()){ container.appendChild(el('div',{class:'muted', style:'font-size:13px'},'Google sign-in still loading — reload and try again.')); return; }
@@ -6790,8 +6793,7 @@ function setSyncBadge(kind){
 }
 async function initDashboard(){
   loadSbSession();                       // restore any saved Supabase session
-  sbAuthToken().catch(()=>{});           // silently refresh an EXISTING session if present; no popups. New sessions are established
-                                         // explicitly from Settings → Database security (until we enable auto-establish post-cutover).
+  ensureSupabaseSession().catch(()=>{}); // auto-establish a per-user session on load (silent One Tap auto-select); anon fallback until ready
   if (cloudOn()){
     setSyncBadge('syncing');
     try { await refreshFromCloud(); setSyncBadge('online'); }
