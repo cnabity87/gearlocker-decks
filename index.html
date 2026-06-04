@@ -581,6 +581,12 @@
     border: 1px solid var(--border);
   }
   .label-body { padding: 22px; font-size: 14px; color: var(--ink-3); line-height: 1.5; }
+  .label-visual.photo { padding: 0; background-color: #1a1a1a; }
+  /* Integration partner tiles (SIS setup slide) */
+  .int-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+  .int-tile { aspect-ratio: 16 / 9; background-size: cover; background-position: center; border-radius: var(--radius-md); border: 1px solid var(--border); }
+  .int-tile.match { box-shadow: 0 0 0 3px var(--accent); border-color: var(--accent); }
+  .int-foot { margin-top: 22px; font-size: 15px; color: var(--ink-3); }
 
   .one-scan {
     margin-top: 32px;
@@ -1826,6 +1832,183 @@
   .prop-page .dashboard-mock { box-shadow: none !important; }
 
   /* ====================================================================
+     WEEKLY EXEC REPORT — section controls + printable document pages
+     ==================================================================== */
+  .rep-head { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; margin:0 0 18px; flex-wrap:wrap; }
+  .rep-controls { display:flex; align-items:center; gap:10px; }
+  .rep-week-lbl { font-size:13px; color:var(--ink-4); font-weight:600; }
+  .rep-week-sel { padding:8px 12px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:13px; background:#fff; cursor:pointer; }
+  .rep-preview { display:flex; flex-direction:column; align-items:center; gap:26px; padding:6px 0 48px; }
+  .rep-preview-page { box-shadow:0 6px 30px rgba(0,0,0,.13); border-radius:6px; overflow:hidden; flex:none; }
+  @media (max-width: 900px){ .rep-preview-page { transform:scale(.62); transform-origin:top center; margin-bottom:-400px; } }
+
+  /* ---- report page internals (live inside a .prop-page) ---- */
+  .rep-hd-tag { margin-left:auto; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-4); }
+  .rep-week-title { font-size:30px; font-weight:600; letter-spacing:-.02em; margin:0 0 4px; line-height:1.1; }
+  .rep-week-meta { font-size:13px; color:var(--ink-4); margin:0 0 22px; }
+
+  .rep-status { display:flex; align-items:center; gap:16px; border-radius:16px; padding:15px 20px; margin-bottom:24px; }
+  .rep-status .rs-badge { font-size:14px; font-weight:700; letter-spacing:.04em; padding:6px 14px; border-radius:999px; white-space:nowrap; }
+  .rep-status .rs-text { font-size:13px; line-height:1.5; }
+  .rep-status.on { background:#ecfdf3; } .rep-status.on .rs-badge{ background:#16a34a; color:#fff; } .rep-status.on .rs-text{ color:#166534; }
+  .rep-status.watch { background:#fffbeb; } .rep-status.watch .rs-badge{ background:#d97706; color:#fff; } .rep-status.watch .rs-text{ color:#92400e; }
+  .rep-status.off { background:#fef2f2; } .rep-status.off .rs-badge{ background:#dc2626; color:#fff; } .rep-status.off .rs-text{ color:#991b1b; }
+  .rep-status.none { background:var(--surface); } .rep-status.none .rs-badge{ background:var(--ink-4); color:#fff; } .rep-status.none .rs-text{ color:var(--ink-3); }
+
+  .rep-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .rep-kpi { border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+  .rep-kpi.hl { background:var(--ink); border-color:var(--ink); }
+  .rep-kpi-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-4); margin-bottom:9px; }
+  .rep-kpi.hl .rep-kpi-label{ color:rgba(255,255,255,.55); }
+  .rep-kpi-value { font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1; color:var(--ink); }
+  .rep-kpi.hl .rep-kpi-value{ color:#fff; }
+  .rep-kpi-delta { margin-top:9px; font-size:11px; min-height:14px; }
+  .rep-delta { font-weight:600; }
+  .rep-delta.up { color:#16a34a; } .rep-delta.down { color:#dc2626; } .rep-delta.flat { color:var(--ink-4); }
+  .rep-kpi.hl .rep-delta.up{ color:#4ade80; } .rep-kpi.hl .rep-delta.down{ color:#f87171; } .rep-kpi.hl .rep-delta.flat{ color:rgba(255,255,255,.5); }
+
+  .rep-pace { display:flex; flex-direction:column; gap:15px; }
+  .rep-pace-top { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px; }
+  .rep-pace-name { font-weight:600; color:var(--ink); }
+  .rep-pace-val { color:var(--ink-3); }
+  .rep-pace-track { position:relative; height:12px; background:var(--surface); border:1px solid var(--border); border-radius:999px; }
+  .rep-pace-fill { position:absolute; left:0; top:0; bottom:0; border-radius:999px; }
+  .rep-pace-fill.ok{ background:#16a34a; } .rep-pace-fill.watch{ background:#d97706; } .rep-pace-fill.behind{ background:#dc2626; } .rep-pace-fill.none{ background:var(--ink-4); }
+  .rep-pace-exp { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); }
+  .rep-pace-sub { font-size:11px; color:var(--ink-4); margin-top:6px; }
+
+  .rep-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .rep-table th, .rep-table td { border:1px solid var(--border); padding:8px 9px; text-align:right; white-space:nowrap; }
+  .rep-table th { background:var(--ink); color:#fff; font-weight:500; font-size:10.5px; letter-spacing:.01em; }
+  .rep-table th:first-child, .rep-table td:first-child { text-align:left; }
+  .rep-table tr.tot td { background:var(--surface); font-weight:700; color:var(--ink); }
+  .rep-table tr.top td { background:var(--accent-soft); color:var(--accent-soft-text); }
+  .rep-table tr.top td:first-child::after { content:' ★'; }
+  .rep-table .rep-mut td { color:var(--ink-4); }
+
+  .rep-list { margin:0; padding:0; list-style:none; }
+  .rep-list li { display:flex; justify-content:space-between; gap:12px; align-items:baseline; font-size:13px; padding:8px 0; border-bottom:1px solid var(--border); }
+  .rep-list li:last-child { border-bottom:none; }
+  .rep-list .rl-main { color:var(--ink); font-weight:500; }
+  .rep-list .rl-sub { color:var(--ink-4); font-size:11.5px; font-weight:400; }
+  .rep-list .rl-amt { color:var(--ink); font-weight:700; white-space:nowrap; }
+  .rep-list .rl-amt.warn { color:#dc2626; }
+  .rep-empty { font-size:12.5px; color:var(--ink-4); font-style:italic; padding:6px 0; }
+  .rep-callout { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+  .rep-chip { font-size:12px; padding:7px 12px; border-radius:10px; background:var(--surface); color:var(--ink-3); }
+  .rep-chip.good { background:#ecfdf3; color:#166534; } .rep-chip.bad { background:#fef2f2; color:#991b1b; }
+  .rep-chip b { color:inherit; font-weight:700; }
+  .rep-two { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start; }
+  .rep-forecast { background:var(--accent); color:#fff; border-radius:16px; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+  .rep-forecast .rf-label { font-size:12px; opacity:.85; } .rep-forecast .rf-val { font-size:23px; font-weight:700; letter-spacing:-.02em; }
+
+  /* ---- Weekly report as landscape (1280×720) slides ---- */
+  .slide-inner.report-slide { justify-content:flex-start; padding:58px 72px 54px; }
+  .report-slide.rs-dark { background:var(--ink); color:#fff; }
+  .rs-eyebrow { font-size:14px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; display:flex; align-items:center; }
+  .rs-eyebrow::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:10px; }
+  .report-slide.rs-dark .rs-eyebrow { color:#ff8b7b; }
+  .rs-title { font-size:44px; font-weight:600; letter-spacing:-.025em; line-height:1.05; margin:0 0 26px; }
+  .report-slide.rs-dark .rs-title { color:#fff; }
+  .rs-sub { font-size:16px; color:var(--ink-3); margin:0 0 22px; max-width:920px; line-height:1.5; }
+  .rs-label { font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-4); margin:0 0 12px; }
+  .rs-label.good { color:#16a34a; } .rs-label.bad { color:#dc2626; }
+  .report-slide.rs-dark .rs-label { color:rgba(255,255,255,.5); }
+  .rs-two { display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:start; }
+
+  .report-slide .rep-kpis { gap:16px; }
+  .report-slide .rep-kpis.two { grid-template-columns:1fr 1fr; }
+  .report-slide .rep-kpi { padding:22px 24px; border-radius:18px; }
+  .report-slide .rep-kpi-label { font-size:12px; margin-bottom:11px; }
+  .report-slide .rep-kpi-value { font-size:40px; }
+  .report-slide .rep-kpi-delta { font-size:13px; margin-top:11px; }
+  .report-slide .rep-pace { gap:24px; }
+  .report-slide .rep-pace-top { font-size:17px; margin-bottom:8px; }
+  .report-slide .rep-pace-track { height:16px; }
+  .report-slide .rep-pace-sub { font-size:13px; margin-top:7px; }
+  .report-slide .rep-table { font-size:15px; }
+  .report-slide .rep-table th { font-size:12.5px; padding:11px 13px; }
+  .report-slide .rep-table td { padding:11px 13px; }
+  .report-slide .rep-list li { font-size:16px; padding:12px 0; }
+  .report-slide .rep-list .rl-sub { font-size:13px; }
+  .report-slide .rep-callout { margin-top:18px; }
+  .report-slide .rep-chip { font-size:13px; padding:8px 14px; }
+  .rep-forecast.big { flex-direction:column; align-items:flex-start; gap:4px; padding:22px 26px; }
+  .rep-forecast.big .rf-val { font-size:42px; }
+  .rep-forecast.big .rf-sub { font-size:12px; opacity:.82; }
+  .rs-mini-stats { margin-top:18px; display:flex; flex-direction:column; gap:11px; }
+  .rs-mini { font-size:15px; color:var(--ink-3); } .rs-mini b { color:var(--ink); font-weight:700; font-size:17px; }
+  .rs-loss { margin-top:16px; font-size:13.5px; color:#991b1b; background:#fef2f2; border-radius:10px; padding:10px 14px; line-height:1.45; } .rs-loss b { color:#dc2626; }
+
+  /* dark-slide overrides for shared rep-* widgets */
+  .report-slide.rs-dark .rep-list .rl-main, .report-slide.rs-dark .rep-list .rl-amt { color:#fff; }
+  .report-slide.rs-dark .rep-list .rl-sub { color:rgba(255,255,255,.55); }
+  .report-slide.rs-dark .rep-list li { border-bottom-color:rgba(255,255,255,.14); }
+  .report-slide.rs-dark .rep-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.85); }
+  .report-slide.rs-dark .rep-chip b { color:#fff; }
+  .report-slide.rs-dark .rep-empty { color:rgba(255,255,255,.5); }
+
+  /* cover slide */
+  .slide-inner.report-slide.rs-cover { justify-content:space-between; }
+  .rs-cover-title { font-size:62px; font-weight:600; letter-spacing:-.03em; line-height:1.02; margin:6px 0 14px; color:#fff; }
+  .rs-cover-meta { font-size:16px; color:rgba(255,255,255,.6); margin-bottom:28px; }
+  .rs-cover-status { display:flex; align-items:center; gap:18px; max-width:1000px; }
+  .rs-cover-badge { font-size:16px; font-weight:700; letter-spacing:.05em; padding:9px 18px; border-radius:999px; white-space:nowrap; }
+  .rs-cover-badge.on { background:#16a34a; color:#fff; } .rs-cover-badge.watch { background:#d97706; color:#fff; } .rs-cover-badge.off { background:#dc2626; color:#fff; } .rs-cover-badge.none { background:#55504c; color:#fff; }
+  .rs-cover-narr { font-size:17px; line-height:1.5; color:rgba(255,255,255,.82); }
+  .rs-cover-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; border-top:1px solid rgba(255,255,255,.16); padding-top:24px; }
+  .rs-cstat-v { font-size:40px; font-weight:700; letter-spacing:-.03em; color:#fff; }
+  .rs-cstat-l { font-size:12px; color:rgba(255,255,255,.55); margin-top:5px; text-transform:uppercase; letter-spacing:.05em; }
+
+  /* thumbnail grid in the Reports tab */
+  .rep-thumbs { display:grid; grid-template-columns:repeat(auto-fill, 384px); gap:18px; margin-top:8px; padding-bottom:30px; }
+  .rep-thumb { position:relative; width:384px; height:216px; border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; background:#fff; box-shadow:0 2px 12px rgba(0,0,0,.06); transition:box-shadow .15s var(--easing), transform .15s var(--easing), border-color .15s var(--easing); }
+  .rep-thumb.dark { background:var(--ink); }
+  .rep-thumb:hover { border-color:var(--accent); box-shadow:0 8px 24px rgba(0,0,0,.14); transform:translateY(-2px); }
+  .rep-thumb-scale { position:absolute; top:0; left:0; width:1280px; height:720px; transform:scale(.3); transform-origin:top left; pointer-events:none; }
+  .rep-thumb-num { position:absolute; top:8px; left:9px; z-index:3; font-size:11px; font-weight:700; color:var(--ink-3); background:rgba(255,255,255,.85); border-radius:6px; padding:2px 7px; }
+  .rep-thumb.dark .rep-thumb-num { color:#fff; background:rgba(255,255,255,.2); }
+
+  /* cover: focus line + data-quality footnote */
+  .rs-cover-focus { margin-top:18px; font-size:15px; line-height:1.5; color:#ffd9d2; background:rgba(238,54,47,.16); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:11px 16px; max-width:1040px; }
+  .rs-cover-bottom { display:flex; flex-direction:column; gap:16px; }
+  .rs-cover-foot { font-size:12px; color:rgba(255,255,255,.45); }
+
+  /* 8-week trend mini bar charts */
+  .tb-grid { display:grid; grid-template-columns:1fr 1fr; gap:26px 38px; }
+  .tb-card { }
+  .tb-title { font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-4); margin-bottom:10px; }
+  .tb-chart { display:flex; align-items:flex-end; gap:8px; height:128px; }
+  .tb-col { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; }
+  .tb-val { font-size:11px; font-weight:600; color:var(--ink-3); margin-bottom:5px; white-space:nowrap; }
+  .tb-bar-wrap { width:100%; height:78px; display:flex; align-items:flex-end; }
+  .tb-bar { width:100%; background:#d8d4d0; border-radius:5px 5px 0 0; min-height:2px; }
+  .tb-bar.last { background:var(--accent); }
+  .tb-lbl { font-size:10.5px; color:var(--ink-4); margin-top:7px; white-space:nowrap; }
+
+  /* forecast categories + plan block */
+  .rs-fc-cats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:16px; }
+  .rs-fc-cat { background:var(--surface); border-radius:12px; padding:12px 14px; }
+  .rs-fc-v { font-size:22px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+  .rs-fc-l { font-size:11px; color:var(--ink-4); margin-top:3px; text-transform:uppercase; letter-spacing:.04em; }
+  .rs-plan { border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .rs-plan-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:13px 16px; font-size:15px; color:var(--ink-3); border-bottom:1px solid var(--border); }
+  .rs-plan-row:last-child { border-bottom:none; }
+  .rs-plan-row b { color:var(--ink); font-weight:700; }
+  .rs-plan-row.hl { background:var(--surface); font-size:16px; }
+  .cov-healthy { color:#16a34a !important; } .cov-thin { color:#d97706 !important; } .cov-short { color:#dc2626 !important; }
+  .rs-foot { margin-top:16px; font-size:12px; color:var(--ink-4); font-style:italic; line-height:1.45; }
+  .report-slide.rs-dark .rs-foot { color:rgba(255,255,255,.5); }
+
+  /* at-risk aging buckets */
+  .rs-aging { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+  .rs-age { background:#fef2f2; border-radius:11px; padding:11px 13px; }
+  .rs-age.empty { background:var(--surface); opacity:.6; }
+  .rs-age-amt { font-size:19px; font-weight:700; color:#dc2626; letter-spacing:-.02em; }
+  .rs-age.empty .rs-age-amt { color:var(--ink-4); }
+  .rs-age-lbl { font-size:11px; color:var(--ink-4); margin-top:3px; }
+
+  /* ====================================================================
      DASHBOARD (deck manager) — list + create decks, manage salespeople
      ==================================================================== */
   .dash {
@@ -2945,6 +3128,12 @@
     <div class="pl-main"><div id="metrics-body"></div></div>
   </div>
 
+  <!-- Weekly exec report page -->
+  <div class="dash section-layer" id="reports-page" style="display:none;">
+    <div class="dash-top"></div>
+    <div class="lb-main"><div id="reports-body"></div></div>
+  </div>
+
   <!-- Start-my-day briefing page -->
   <div class="dash section-layer" id="today-page" style="display:none;">
     <div class="dash-top"></div>
@@ -3826,7 +4015,7 @@ function deckRow(deck, team){
     el('div',{class:'deck-cell num'}, deck.enrollment ? fmtNum(deck.enrollment) : el('span',{class:'muted'},'—')),
     el('div',{class:'deck-cell'}, repAssignSelect(deck, team)),
     el('div',{class:'deck-row-actions'},
-      el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
+      el('button',{class:'btn sm primary', onClick:()=>openDeckTab(deck.id)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
       el('button',{class:'btn ghost sm' + (deck.emailedAt?' is-sent':''), 'data-tip': deck.emailedAt ? 'Emailed — click to email again' : 'Email the contact', onClick:()=>openEmailModal(deck)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>'})),
@@ -3988,7 +4177,7 @@ function createDeck(o){
     stage: 'newlead', leadSource: (sourceNames()[0] || 'Cold outreach'), leadSubSource:'', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
   closeModal();
-  openDeck(deck.id);
+  openDeckTab(deck.id);
 }
 
 function openEditModal(deck){
@@ -5786,14 +5975,14 @@ function renderLeadDocuments(deck, content){
   const tip = 'Finish the presentation first — missing ' + ready.missing.join(' and ');
   if (!ready.ready) card.appendChild(el('div',{class:'docs-banner'},
     el('span',{}, 'This presentation isn’t finished — add ' + ready.missing.join(' and ') + ' so the pricing and tailored numbers are complete before it goes out.'),
-    el('button',{class:'btn sm primary', type:'button', onClick:()=>openDeck(deck.id)}, 'Finish presentation')));
+    el('button',{class:'btn sm primary', type:'button', onClick:()=>openDeckTab(deck.id)}, 'Finish presentation')));
   const list = el('div',{class:'lead-docs'});
   list.appendChild(docRow({
     icon: DECK_IC,
     title: deck.school + ' — Sales presentation',
     sub: ready.ready ? 'Interactive slide deck, tailored to this school' : 'Not finished — open it to add ' + ready.missing.join(' and '),
     actions: [
-      { label:'Open', primary:true, onClick:()=>openDeck(deck.id) },
+      { label:'Open', primary:true, onClick:()=>openDeckTab(deck.id) },
       { label:'Download PDF', disabled:!ready.ready, title: ready.ready?'':tip, onClick:(e)=>downloadDeckPdf(deck, e.currentTarget) }
     ]
   }));
@@ -5855,7 +6044,7 @@ function renderLeadProposal(deck, content){
   const card = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Proposal pricing'));
   if (!(deck.enrollment && Number(deck.enrollment) > 0)){
     card.appendChild(el('div',{class:'lead-empty', style:'padding:8px 0 4px'}, 'Add the school’s enrollment in the deck to calculate pricing.'));
-    card.appendChild(el('button',{class:'btn sm primary', style:'margin-top:12px', type:'button', onClick:()=>openDeck(deck.id)}, 'Open the deck →'));
+    card.appendChild(el('button',{class:'btn sm primary', style:'margin-top:12px', type:'button', onClick:()=>openDeckTab(deck.id)}, 'Open the deck →'));
     content.appendChild(card);
     return;
   }
@@ -5948,10 +6137,10 @@ function tlNode(e, opts){
 }
 
 /* ---------- CRM section navigation ---------- */
-const SECTION_PAGE = { today:'today-page', leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', settings:'settings-page' };
-const SECTION_VIEW = { today:'today', leads:'dashboard', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', settings:'settings' };
-const NAV_TABS = [ {key:'today',label:'Today'}, {key:'leads',label:'Leads'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'settings',label:'Settings'} ];
-const ALL_LAYER_IDS = ['today-page','dashboard','pipeline-page','metrics-page','leaderboard-page','settings-page','tasks-page','lead-page'];
+const SECTION_PAGE = { today:'today-page', leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', reports:'reports-page', settings:'settings-page' };
+const SECTION_VIEW = { today:'today', leads:'dashboard', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', reports:'reports', settings:'settings' };
+const NAV_TABS = [ {key:'today',label:'Today'}, {key:'leads',label:'Leads'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'reports',label:'Reports'}, {key:'settings',label:'Settings'} ];
+const ALL_LAYER_IDS = ['today-page','dashboard','pipeline-page','metrics-page','leaderboard-page','reports-page','settings-page','tasks-page','lead-page'];
 function hideAllSections(){ ALL_LAYER_IDS.forEach(id => { const e = document.getElementById(id); if (e){ e.style.display='none'; if (id==='dashboard') e.classList.add('is-hidden'); } }); }
 function buildNav(active){
   const chip = el('button',{class:'user-chip', type:'button'});
@@ -5992,6 +6181,7 @@ function showSection(name){
   else if (name==='dashboard') renderMetrics();
   else if (name==='tasks') renderTasksSection();
   else if (name==='performance') renderLeaderboard();
+  else if (name==='reports') renderReports();
   else if (name==='settings') renderSettingsPage();
   const top = page.querySelector('.dash-top');
   if (top){ top.innerHTML=''; top.appendChild(buildNav(name)); }
@@ -6700,12 +6890,22 @@ function openAnalysisDrawer(deck){
 
 document.getElementById('settings-back').addEventListener('click', backFromSettings);
 
+/* --- Launch a deck in its own browser tab so the CRM stays put in this one --- */
+let IS_DECK_TAB = false;   // true only in a tab opened straight onto a deck (?deck=ID)
+function openDeckTab(id){
+  if (!id) return;
+  const url = location.pathname + '?deck=' + encodeURIComponent(id);
+  const w = window.open(url, '_blank');
+  if (!w) openDeck(id);   // popup blocked → fall back to opening in place
+}
+
 /* --- Open a deck (dashboard → presentation) --- */
 function openDeck(id){
   const deck = getDecks().find(d=>d.id===id);
   if (!deck) return;
   const sp = getTeam().find(p=>p.id===deck.salespersonId) || null;
   state.deckId = id;
+  state.deckMode = 'deck';
   state.view = 'deck';
   state.slide = 0;
   state.lossPct = (deck.lossPct != null ? deck.lossPct : 10);
@@ -7010,6 +7210,615 @@ async function generateProposal(deck, btn){
   } finally {
     btn.disabled = false; btn.innerHTML = origHTML;
   }
+}
+
+/* ===================== Weekly exec report ===================== */
+// Sunday-start week containing date d (local midnight).
+function weekStartSun(d){ const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - x.getDay()); return x; }
+// Range for a completed Sun–Sat week. offset 0 = most recent FULL week (ended last Saturday).
+function reportWeekRange(offset){
+  offset = offset || 0;
+  const thisSun = weekStartSun(new Date());                 // start of the current (in-progress) week
+  const end = new Date(thisSun); end.setDate(end.getDate() - 7*offset);   // exclusive upper bound (a Sunday 00:00)
+  const start = new Date(end);   start.setDate(start.getDate() - 7);      // inclusive lower bound (prev Sunday 00:00)
+  return { start, end };
+}
+function fmtDayShort(d){ return d.toLocaleDateString(undefined, { month:'short', day:'numeric' }); }
+function weekLabel(r){ const last = new Date(r.end); last.setDate(last.getDate()-1); return fmtDayShort(r.start) + ' – ' + fmtDayShort(last) + ', ' + last.getFullYear(); }
+function inRange(iso, r){ if(!iso) return false; const t = parseDay(iso).getTime(); return t >= r.start.getTime() && t < r.end.getTime(); }
+function fmtMoneyK(n){ n = Math.round(Number(n)||0); const neg = n<0; n = Math.abs(n); let s; if (n >= 1000) s = '$' + (n/1000).toFixed(n%1000===0?0:1).replace(/\.0$/,'') + 'k'; else s = '$' + n; return (neg?'−':'') + s; }
+function repNameOf(team, d){ const p = team.find(x=>x.id===d.salespersonId); return p ? p.name : 'Unassigned'; }
+
+function weeklyReportData(offset){
+  const decks = getDecks(), team = getTeam();
+  const cur = reportWeekRange(offset), prev = reportWeekRange((offset||0)+1);
+
+  function windowMetrics(r){
+    const won = decks.filter(d => inRange(closedWonDate(d), r));
+    const lost = decks.filter(d => inRange(lostDate(d), r));
+    const created = decks.filter(d => inRange(d.createdAt, r));
+    const m = {
+      leads: created.length,
+      demos: decks.filter(d => inRange(demoDate(d), r)).length,
+      commits: decks.filter(d => inRange(committedDate(d), r)).length,
+      wonCount: won.length,
+      wonAmt: won.reduce((a,d)=>a+dealAmount(d),0),
+      lostCount: lost.length,
+      pipeCreated: created.reduce((a,d)=>a+dealAmount(d),0),
+      emailed: decks.filter(d => inRange(d.emailedAt, r)).length,
+      won: won, lost: lost, created: created
+    };
+    m.winRate = (m.wonCount+m.lostCount) ? Math.round(100*m.wonCount/(m.wonCount+m.lostCount)) : null;
+    return m;
+  }
+  const wk = windowMetrics(cur), pw = windowMetrics(prev);
+
+  // --- Month-to-date pacing vs monthly goals (as of the report week's end) ---
+  const asOf = new Date(cur.end);                            // exclusive Sunday after the reported Saturday
+  const monthStart = new Date(asOf.getFullYear(), asOf.getMonth(), 1);
+  const monthEnd = new Date(asOf.getFullYear(), asOf.getMonth()+1, 1);
+  const daysInMonth = Math.round((monthEnd - monthStart)/86400000);
+  const daysElapsed = Math.max(1, Math.min(daysInMonth, Math.round((asOf - monthStart)/86400000)));
+  const mtdR = { start: monthStart, end: asOf };
+  const mtd = {
+    leads: decks.filter(d => inRange(d.createdAt, mtdR)).length,
+    demos: decks.filter(d => inRange(demoDate(d), mtdR)).length,
+    salesCount: decks.filter(d => inRange(closedWonDate(d), mtdR)).length,
+    sales: decks.filter(d => inRange(closedWonDate(d), mtdR)).reduce((a,d)=>a+dealAmount(d),0)
+  };
+  const pace = daysElapsed / daysInMonth;
+  function goalRow(key, actual, goal){
+    const expected = goal * pace;
+    let status = 'none';
+    if (goal > 0) status = actual >= expected*0.999 ? 'ok' : (actual >= expected*0.85 ? 'watch' : 'behind');
+    return { key, actual, goal, expected, pct: goal>0 ? Math.round(100*actual/goal) : null, status };
+  }
+  const goals = {
+    leads: goalRow('leads', mtd.leads, Number(GOALS.leads)||0),
+    demos: goalRow('demos', mtd.demos, Number(GOALS.demos)||0),
+    salesCount: goalRow('salesCount', mtd.salesCount, Number(GOALS.salesCount)||0),
+    sales: goalRow('sales', mtd.sales, Number(GOALS.sales)||0)
+  };
+  const tracked = ['leads','demos','salesCount','sales'].map(k=>goals[k]).filter(g=>g.goal>0);
+  const behindN = tracked.filter(g=>g.status==='behind').length;
+  const watchN = tracked.filter(g=>g.status==='watch').length;
+  let overall = 'none';
+  if (tracked.length) overall = behindN>=2 ? 'off' : ((behindN>=1||watchN>=2) ? 'watch' : 'on');
+
+  // --- Current pipeline snapshot ---
+  const open = decks.filter(isOpenDeal);
+  const openStages = ['newlead','demoscheduled','noshow','democompleted','verbalcommit'];
+  const byStage = openStages.map(s => {
+    const ds = open.filter(d => dealStage(d)===s);
+    return { key:s, label: stageMeta(s).short, n: ds.length, amt: ds.reduce((a,d)=>a+dealAmount(d),0) };
+  });
+  const openValue = open.reduce((a,d)=>a+dealAmount(d),0);
+  const weighted = open.reduce((a,d)=> a + dealAmount(d)*(STAGE_PROB[dealStage(d)]||0), 0);
+
+  // --- Funnel (all-time conversion) ---
+  const funnel = {
+    leads: decks.length,
+    demos: decks.filter(d => demoDate(d) || committedDate(d) || closedWonDate(d)).length,
+    commits: decks.filter(d => committedDate(d) || closedWonDate(d)).length,
+    won: decks.filter(d => dealStage(d)==='closedwon').length
+  };
+
+  // --- Velocity (avg days lead→won) ---
+  const cycles = decks.filter(d => closedWonDate(d) && d.createdAt).map(d => dayDiff(closedWonDate(d), d.createdAt)).filter(x=>x>=0);
+  const avgCycle = cycles.length ? Math.round(cycles.reduce((a,b)=>a+b,0)/cycles.length) : null;
+
+  // --- Rep scoreboard ---
+  const groups = team.map(p => ({ id:p.id, name:p.name, decks: decks.filter(d=>d.salespersonId===p.id) }));
+  const unassigned = decks.filter(d => !team.find(p=>p.id===d.salespersonId));
+  if (unassigned.length) groups.push({ id:null, name:'Unassigned', decks: unassigned, muted:true });
+  let reps = groups.map(g => {
+    const w = g.decks.filter(d => inRange(closedWonDate(d), cur));
+    const wl = g.decks.filter(d=>dealStage(d)==='closedwon').length, ll = g.decks.filter(d=>dealStage(d)==='closedlost').length;
+    const graded = g.decks.filter(d => d.callGrade && typeof d.callGrade.overall==='number');
+    return {
+      name: g.name, muted: !!g.muted,
+      leads: g.decks.filter(d => inRange(d.createdAt, cur)).length,
+      demos: g.decks.filter(d => inRange(demoDate(d), cur)).length,
+      commits: g.decks.filter(d => inRange(committedDate(d), cur)).length,
+      wonCount: w.length, wonAmt: w.reduce((a,d)=>a+dealAmount(d),0),
+      openPipe: g.decks.filter(isOpenDeal).reduce((a,d)=>a+dealAmount(d),0),
+      winRate: (wl+ll)?Math.round(100*wl/(wl+ll)):null,
+      avgGrade: graded.length ? Math.round(graded.reduce((a,d)=>a+d.callGrade.overall,0)/graded.length) : null,
+      nudges: g.decks.filter(dealNeedsNudge).length
+    };
+  });
+  reps.sort((a,b)=> (b.wonAmt-a.wonAmt) || (b.wonCount-a.wonCount) || (b.demos-a.demos) || (b.leads-a.leads));
+  const active = reps.filter(r=>!r.muted);
+  const topRep = active.find(r => (r.wonAmt>0 || r.wonCount>0 || r.demos>0 || r.leads>0)) || null;
+  const behindReps = active.filter(r => (r.leads + r.demos + r.wonCount) === 0);
+
+  // --- Wins / losses (this week) ---
+  const wins = wk.won.slice().sort((a,b)=>dealAmount(b)-dealAmount(a)).map(d => ({ school:d.school, amt:dealAmount(d), rep: repNameOf(team, d) }));
+  const losses = wk.lost.map(d => ({ school:d.school, rep: repNameOf(team, d), reason: d.lostReason || d.lossReason || '' }));
+
+  // --- At-risk: high-value open deals gone quiet ---
+  const thr = nudgeThreshold();
+  const atRisk = open.map(d => ({ d, q: daysQuiet(d), amt: dealAmount(d), health: dealHealth(d) }))
+    .filter(x => x.q != null && x.q >= thr)
+    .sort((a,b)=> (b.amt-a.amt) || (b.q-a.q))
+    .slice(0,7)
+    .map(x => ({ school:x.d.school, rep: repNameOf(team, x.d), amt:x.amt, days:x.q, stage: stageMeta(dealStage(x.d)).short, label: (x.health&&x.health.label)||'' }));
+
+  // --- Look-ahead: follow-ups booked in the next 7 days + open verbal commits ---
+  const now = Date.now(), in7 = now + 7*86400000;
+  const upcoming = open.filter(hasUpcomingFollowup)
+    .map(d => ({ d, t: new Date(d.followup.startTime).getTime() }))
+    .filter(x => x.t <= in7)
+    .sort((a,b)=>a.t-b.t)
+    .map(x => ({ school:x.d.school, rep:repNameOf(team,x.d), when: new Date(x.d.followup.startTime), stage: stageMeta(dealStage(x.d)).short }));
+  const commitDeals = open.filter(d => dealStage(d)==='verbalcommit');
+  const closingSoon = commitDeals.slice().sort((a,b)=>dealAmount(b)-dealAmount(a))
+    .map(d => ({ school:d.school, rep:repNameOf(team,d), amt:dealAmount(d) }));
+
+  // --- Trends: last 8 weeks ending at the report week (oldest → newest) ---
+  const TREND_N = 8;
+  const trends = [];
+  for (let k = TREND_N - 1; k >= 0; k--){
+    const r = reportWeekRange((offset||0) + k);
+    const wonW = decks.filter(d => inRange(closedWonDate(d), r));
+    trends.push({
+      label: fmtDayShort(r.start),
+      leads: decks.filter(d => inRange(d.createdAt, r)).length,
+      demos: decks.filter(d => inRange(demoDate(d), r)).length,
+      wonAmt: wonW.reduce((a,d)=>a+dealAmount(d),0),
+      wonCount: wonW.length,
+      pipe: decks.filter(d => inRange(d.createdAt, r)).reduce((a,d)=>a+dealAmount(d),0)
+    });
+  }
+
+  // --- Forecast vs plan (month) ---
+  const monthGoal = Number(GOALS.sales)||0;
+  const commitVal = commitDeals.reduce((a,d)=>a+dealAmount(d),0);
+  const remainingGoal = monthGoal>0 ? Math.max(0, monthGoal - mtd.sales) : null;
+  const coverage = (remainingGoal && remainingGoal>0) ? (openValue / remainingGoal) : null;
+  const projected = mtd.sales + weighted;                                  // MTD won + weighted open pipeline
+  const projGap = monthGoal>0 ? (projected - monthGoal) : null;            // + ahead / − short of the number
+  const collectedMTD = decks.filter(d => inRange(d.paidAt, mtdR)).reduce((a,d)=>a+dealAmount(d),0);
+  const plan = { monthGoal, wonMTD: mtd.sales, remainingGoal, openValue, weighted, commitVal, bestCase: openValue,
+                 projected, projGap, collectedMTD, attainPct: monthGoal>0 ? Math.round(100*mtd.sales/monthGoal) : null,
+                 coverage };
+
+  // --- Segmentation (MTD leads & won; current open pipeline; all-time win rate) ---
+  function segment(keyFn){
+    const map = {};
+    decks.forEach(d => {
+      const k = keyFn(d) || 'Unspecified';
+      const m = map[k] || (map[k] = { key:k, leads:0, wonAmt:0, openPipe:0, won:0, lost:0 });
+      if (inRange(d.createdAt, mtdR)) m.leads++;
+      if (inRange(closedWonDate(d), mtdR)) m.wonAmt += dealAmount(d);
+      if (isOpenDeal(d)) m.openPipe += dealAmount(d);
+      const st = dealStage(d);
+      if (st==='closedwon') m.won++; else if (st==='closedlost') m.lost++;
+    });
+    return Object.keys(map).map(k=>map[k]).map(m => { m.winRate = (m.won+m.lost) ? Math.round(100*m.won/(m.won+m.lost)) : null; return m; })
+      .sort((a,b)=> (b.openPipe + b.wonAmt) - (a.openPipe + a.wonAmt));
+  }
+  const bySource = segment(d => d.leadSource);
+  const sizeBand = d => { const a = dealAmount(d); if (!a) return 'Unsized'; if (a < 20000) return 'Under $20k'; if (a < 40000) return '$20k–$40k'; return '$40k+'; };
+  const bySize = segment(sizeBand);
+
+  // --- Risk aggregate + aging ($ of open pipeline gone quiet) ---
+  const quietOpen = open.map(d => ({ d, q: daysQuiet(d), amt: dealAmount(d) })).filter(x => x.q != null && x.q >= thr);
+  const atRiskTotal = quietOpen.reduce((a,x)=>a+x.amt, 0);
+  const agingBuckets = [
+    { label: thr + '–30d', lo: thr, hi: 30 },
+    { label: '30–60d', lo: 30, hi: 60 },
+    { label: '60d+', lo: 60, hi: Infinity }
+  ].map(b => { const items = quietOpen.filter(x => x.q >= b.lo && x.q < b.hi); return { label:b.label, n:items.length, amt:items.reduce((a,x)=>a+x.amt,0) }; });
+
+  // --- Data completeness ---
+  const unassignedCount = decks.filter(d => !team.find(p=>p.id===d.salespersonId)).length;
+  const noAmountCount = decks.filter(d => dealAmount(d) === 0).length;
+  const dataHealth = { total: decks.length, unassigned: unassignedCount, noAmount: noAmountCount };
+
+  // --- Auto "focus this week" recovery line ---
+  const gname = { leads:'lead-gen', demos:'demos', salesCount:'closes', sales:'revenue' };
+  const behindKeys = ['sales','salesCount','demos','leads'].filter(k=>goals[k].goal>0 && goals[k].status==='behind');
+  const focusParts = [];
+  if (behindKeys.length) focusParts.push('behind on ' + behindKeys.map(k=>gname[k]).join(' & ') + ' for the month');
+  if (atRiskTotal > 0) focusParts.push('work the ' + quietOpen.length + ' stalled deal' + (quietOpen.length===1?'':'s') + ' (' + fmtMoneyK(atRiskTotal) + ' gone quiet)');
+  if (commitVal > 0) focusParts.push('close the ' + commitDeals.length + ' verbal commit' + (commitDeals.length===1?'':'s') + ' worth ' + fmtMoneyK(commitVal));
+  const focus = focusParts.length ? ('Focus: ' + focusParts.join('; ') + '.') : 'Clean week — keep the top of funnel full and push commits to close.';
+
+  return { offset:offset||0, cur, prev, wk, pw, goals, mtd, overall, daysElapsed, daysInMonth, monthStart,
+           byStage, openValue, weighted, openCount: open.length, funnel, avgCycle,
+           reps, topRep, behindReps, wins, losses, atRisk, upcoming, closingSoon, team, totalDecks: decks.length,
+           trends, plan, bySource, bySize, quietOpen, atRiskTotal, agingBuckets, dataHealth, focus };
+}
+
+/* ---- report slide helpers (reuse .rep-* styling inside landscape slides) ---- */
+function wowDelta(cur, prev, opts){
+  opts = opts || {};
+  if (prev == null) return el('span',{class:'rep-delta flat'}, '—');
+  const diff = cur - prev;
+  if (diff === 0) return el('span',{class:'rep-delta flat'}, 'flat vs last wk');
+  const up = diff > 0;
+  const good = opts.lowerBetter ? !up : up;
+  const val = opts.money ? fmtMoneyK(Math.abs(diff)) : String(Math.abs(diff));
+  // Suppress the % on small-base counts — "+300%" off 1→4 is noise, not signal.
+  const showPct = prev && (opts.money ? Math.abs(prev) >= 1000 : Math.abs(prev) >= 5);
+  const pct = showPct ? (' (' + (up?'+':'−') + Math.round(100*Math.abs(diff)/Math.abs(prev)) + '%)') : '';
+  return el('span',{class:'rep-delta ' + (good?'up':'down')}, (up?'▲ ':'▼ ') + val + pct + ' vs last wk');
+}
+function kpiCard(label, value, deltaNode, hl){
+  return el('div',{class:'rep-kpi' + (hl?' hl':'')},
+    el('div',{class:'rep-kpi-label'}, label),
+    el('div',{class:'rep-kpi-value'}, value),
+    el('div',{class:'rep-kpi-delta'}, deltaNode || el('span',{class:'rep-delta flat'},'—'))
+  );
+}
+function pacingBar(g, name, money){
+  const fmt = money ? fmtMoneyK : (x=>String(Math.round(x)));
+  const fillPct = g.goal>0 ? Math.max(2, Math.min(100, Math.round(100*g.actual/g.goal))) : 0;
+  const expPct = g.goal>0 ? Math.min(100, Math.round(100*g.expected/g.goal)) : 0;
+  const statusWord = { ok:'On pace', watch:'Slightly behind', behind:'Behind', none:'No goal set' }[g.status];
+  return el('div',{class:'rep-pace-row'},
+    el('div',{class:'rep-pace-top'},
+      el('span',{class:'rep-pace-name'}, name),
+      el('span',{class:'rep-pace-val'}, g.goal>0 ? (fmt(g.actual) + ' / ' + fmt(g.goal) + (g.pct!=null?(' · '+g.pct+'%'):'')) : (fmt(g.actual) + ' · no goal'))),
+    el('div',{class:'rep-pace-track'},
+      el('div',{class:'rep-pace-fill ' + g.status, style:'width:' + fillPct + '%'}),
+      g.goal>0 ? el('div',{class:'rep-pace-exp', style:'left:' + expPct + '%'}) : null),
+    el('div',{class:'rep-pace-sub'}, g.goal>0 ? (statusWord + ' — expected ~' + fmt(g.expected) + ' by now (vertical line)') : 'Set a goal in Settings → Goals to track pace.')
+  );
+}
+function reportNarrative(data){
+  const w = data.wk, p = data.pw, bits = [];
+  bits.push(w.wonCount ? (w.wonCount + ' deal' + (w.wonCount>1?'s':'') + ' closed for ' + fmtUSD(w.wonAmt)) : 'no deals closed');
+  const ld = w.leads - p.leads;
+  bits.push(w.leads + ' new lead' + (w.leads===1?'':'s') + (p.leads||w.leads ? (ld===0?' (flat WoW)':(ld>0?(' (up '+ld+' WoW)'):(' (down '+Math.abs(ld)+' WoW)'))):''));
+  if (w.demos) bits.push(w.demos + ' demo' + (w.demos>1?'s':'') + ' completed');
+  if (w.commits) bits.push(w.commits + ' new verbal commit' + (w.commits>1?'s':''));
+  const names = { leads:'leads', demos:'demos', salesCount:'sales count', sales:'revenue' };
+  const behind = ['leads','demos','salesCount','sales'].filter(k=>data.goals[k].goal>0 && data.goals[k].status==='behind');
+  const watch = ['leads','demos','salesCount','sales'].filter(k=>data.goals[k].goal>0 && data.goals[k].status==='watch');
+  let pace;
+  if (data.overall==='none') pace = 'No monthly goals set yet — add them in Settings → Goals to track pace.';
+  else if (data.overall==='on') pace = 'On pace to hit this month’s goals.';
+  else if (behind.length) pace = 'Behind month-to-date pace on ' + behind.map(k=>names[k]).join(', ') + '.';
+  else if (watch.length) pace = 'Slightly behind on ' + watch.map(k=>names[k]).join(', ') + ' for the month.';
+  else pace = '';
+  return bits.join(' · ') + '. ' + pace;
+}
+
+/* Build one landscape report slide (1280×720) in the deck's visual language. */
+function rsSlide(opts){
+  const kids = Array.prototype.slice.call(arguments, 1).filter(Boolean);
+  const innerCls = 'slide-inner report-slide' + (opts.dark?' rs-dark':'') + (opts.cls?(' '+opts.cls):'');
+  const head = [];
+  if (opts.eyebrow) head.push(el('div',{class:'rs-eyebrow'}, opts.eyebrow));
+  if (opts.title) head.push(el('h2',{class:'rs-title'}, opts.title));
+  const secCls = opts.dark ? 'dark' : (opts.surface ? 'surface' : '');
+  return el('section', secCls ? {class:secCls} : {}, el('div',{class:innerCls}, ...head, ...kids));
+}
+
+/* Small CSS bar chart for a weekly series. series = [{label, v}]. */
+function miniBars(series, opts){
+  opts = opts || {};
+  const max = Math.max(1, ...series.map(s=>s.v));
+  return el('div',{class:'tb-chart'}, ...series.map((s, i) => {
+    const h = s.v > 0 ? Math.max(3, Math.round(100 * s.v / max)) : 0;
+    const isLast = i === series.length - 1;
+    return el('div',{class:'tb-col'},
+      el('div',{class:'tb-val'}, opts.fmt ? opts.fmt(s.v) : String(s.v)),
+      el('div',{class:'tb-bar-wrap'}, el('div',{class:'tb-bar' + (isLast?' last':''), style:'height:' + h + '%'})),
+      el('div',{class:'tb-lbl'}, s.label));
+  }));
+}
+function trendCard(title, series, opts){
+  return el('div',{class:'tb-card'}, el('div',{class:'tb-title'}, title), miniBars(series, opts));
+}
+/* Segmentation table: rows = [{key, leads, wonAmt, openPipe, winRate}]. */
+function segTable(rows, label){
+  return el('table',{class:'rep-table'},
+    el('tr',{}, el('th',{}, label), el('th',{}, 'Leads'), el('th',{}, 'Won $'), el('th',{}, 'Open pipe'), el('th',{}, 'Win rate')),
+    ...(rows.length ? rows.map(r => el('tr',{},
+      el('td',{}, r.key), el('td',{}, String(r.leads)), el('td',{}, fmtMoneyK(r.wonAmt)), el('td',{}, fmtMoneyK(r.openPipe)),
+      el('td',{}, r.winRate!=null ? (r.winRate+'%') : '—')))
+      : [el('tr',{}, el('td',{class:'rep-empty', colspan:'5'}, 'No data.'))]));
+}
+function fcCat(label, val){ return el('div',{class:'rs-fc-cat'}, el('div',{class:'rs-fc-v'}, fmtMoneyK(val)), el('div',{class:'rs-fc-l'}, label)); }
+function planBlock(plan){
+  if (!plan.monthGoal) return el('div',{class:'rs-foot'}, 'Set a monthly sales ($) goal in Settings → Goals to see coverage, gap-to-goal, and projected landing.');
+  const cov = plan.coverage;
+  const covVerdict = cov==null ? '—' : (cov>=3 ? 'healthy' : cov>=1.5 ? 'thin' : 'short');
+  const gap = plan.projGap;
+  const gapStr = gap==null ? '' : (gap>=0 ? (fmtMoneyK(gap) + ' above goal') : (fmtMoneyK(Math.abs(gap)) + ' short'));
+  return el('div',{class:'rs-plan'},
+    el('div',{class:'rs-plan-row'}, el('span',{}, 'Month goal'), el('b',{}, fmtUSD(plan.monthGoal))),
+    el('div',{class:'rs-plan-row'}, el('span',{}, 'Won so far (MTD)'), el('b',{}, fmtUSD(plan.wonMTD) + ' · ' + plan.attainPct + '%')),
+    el('div',{class:'rs-plan-row'}, el('span',{}, 'Still needed'), el('b',{}, fmtUSD(plan.remainingGoal))),
+    el('div',{class:'rs-plan-row'}, el('span',{}, 'Pipeline coverage'), el('b',{class:'cov-'+covVerdict}, cov!=null ? (cov.toFixed(1)+'× · ' + covVerdict) : '—')),
+    el('div',{class:'rs-plan-row hl'}, el('span',{}, 'Projected landing'), el('b',{class: (gap!=null&&gap<0)?'cov-short':'cov-healthy'}, fmtUSD(plan.projected) + (gapStr?(' · ' + gapStr):''))),
+    plan.collectedMTD ? el('div',{class:'rs-plan-row'}, el('span',{}, 'Collected (cash) MTD'), el('b',{}, fmtUSD(plan.collectedMTD))) : null
+  );
+}
+function dataNote(dh){
+  const issues = [];
+  if (dh.unassigned) issues.push(dh.unassigned + ' unassigned');
+  if (dh.noAmount) issues.push(dh.noAmount + ' missing an amount');
+  return issues.length ? ('Data quality: ' + dh.total + ' deals · ' + issues.join(' · ') + ' — totals may be understated.')
+                       : ('Data quality: all ' + dh.total + ' deals are assigned to a rep and have a deal value.');
+}
+
+function buildReportSlides(data){
+  const slides = [];
+  const statusMap = { on:{t:'ON TRACK', c:'on'}, watch:{t:'WATCH', c:'watch'}, off:{t:'OFF TRACK', c:'off'}, none:{t:'NO GOALS SET', c:'none'} };
+  const sm = statusMap[data.overall] || statusMap.none;
+  const plur = (n, w)=> n + ' ' + w + (n===1?'':'s');
+
+  // ----- Slide 1: Cover (dark) -----
+  slides.push(rsSlide({ dark:true, cls:'rs-cover' },
+    el('div',{class:'rs-cover-top'},
+      el('div',{class:'rs-eyebrow'}, 'Weekly Sales Report'),
+      el('h1',{class:'rs-cover-title'}, 'Week of ' + weekLabel(data.cur)),
+      el('div',{class:'rs-cover-meta'}, 'Sunday–Saturday · ' + data.totalDecks + ' deals in the system'),
+      el('div',{class:'rs-cover-status'},
+        el('span',{class:'rs-cover-badge ' + sm.c}, sm.t),
+        el('span',{class:'rs-cover-narr'}, reportNarrative(data))),
+      el('div',{class:'rs-cover-focus'}, data.focus)),
+    el('div',{class:'rs-cover-bottom'},
+      el('div',{class:'rs-cover-stats'},
+        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, fmtMoneyK(data.wk.wonAmt)), el('div',{class:'rs-cstat-l'}, 'Revenue won')),
+        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, String(data.wk.wonCount)), el('div',{class:'rs-cstat-l'}, 'Deals won')),
+        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, String(data.wk.leads)), el('div',{class:'rs-cstat-l'}, 'New leads')),
+        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, fmtMoneyK(data.weighted)), el('div',{class:'rs-cstat-l'}, 'Weighted pipeline'))),
+      el('div',{class:'rs-cover-foot'}, dataNote(data.dataHealth)))
+  ));
+
+  // ----- Slide 2b: 8-week trend -----
+  const tr = data.trends, mk = (key)=> tr.map(w => ({ label:w.label, v:w[key] }));
+  const trendSlide = rsSlide({ eyebrow:'Trajectory', title:'8-week trend' },
+    el('p',{class:'rs-sub'}, 'Each bar is one completed week (oldest → newest). The final, highlighted bar is the week being reported — look at direction, not any single week.'),
+    el('div',{class:'tb-grid'},
+      trendCard('New leads', mk('leads'), {}),
+      trendCard('Demos completed', mk('demos'), {}),
+      trendCard('Revenue won', mk('wonAmt'), {fmt:fmtMoneyK}),
+      trendCard('Pipeline created', mk('pipe'), {fmt:fmtMoneyK})));
+
+  // ----- Slide 2: This week at a glance -----
+  slides.push(rsSlide({ eyebrow:'Performance', title:'This week at a glance' },
+    el('div',{class:'rep-kpis'},
+      kpiCard('New revenue won', fmtMoneyK(data.wk.wonAmt), wowDelta(data.wk.wonAmt, data.pw.wonAmt, {money:true}), true),
+      kpiCard('Deals won', String(data.wk.wonCount), wowDelta(data.wk.wonCount, data.pw.wonCount)),
+      kpiCard('Pipeline created', fmtMoneyK(data.wk.pipeCreated), wowDelta(data.wk.pipeCreated, data.pw.pipeCreated, {money:true})),
+      kpiCard('New leads', String(data.wk.leads), wowDelta(data.wk.leads, data.pw.leads)),
+      kpiCard('Demos completed', String(data.wk.demos), wowDelta(data.wk.demos, data.pw.demos)),
+      kpiCard('Verbal commits', String(data.wk.commits), wowDelta(data.wk.commits, data.pw.commits)))
+  ));
+
+  // ----- Slide 3: 8-week trend (built above) -----
+  slides.push(trendSlide);
+
+  // ----- Slide 4: Goal pacing -----
+  slides.push(rsSlide({ eyebrow:'On track for the month?', title:'Goal pacing — month to date' },
+    el('p',{class:'rs-sub'}, data.daysElapsed + ' of ' + data.daysInMonth + ' days into the month. The vertical line marks the pace you’d expect to be at by today.'),
+    el('div',{class:'rep-pace'},
+      pacingBar(data.goals.leads, 'New leads', false),
+      pacingBar(data.goals.demos, 'Demos', false),
+      pacingBar(data.goals.salesCount, 'Sales (count)', false),
+      pacingBar(data.goals.sales, 'Sales ($)', true))
+  ));
+
+  // ----- Slide 5: Pipeline & forecast vs plan -----
+  const stageRows = data.byStage.map(s => el('tr',{}, el('td',{}, s.label), el('td',{}, String(s.n)), el('td',{}, fmtUSD(s.amt))));
+  stageRows.push(el('tr',{class:'tot'}, el('td',{}, 'Open pipeline'), el('td',{}, String(data.openCount)), el('td',{}, fmtUSD(data.openValue))));
+  slides.push(rsSlide({ eyebrow:'Will we hit the number?', title:'Pipeline & forecast vs plan' },
+    el('div',{class:'rs-two'},
+      el('div',{},
+        el('div',{class:'rs-label'}, 'Open pipeline by stage'),
+        el('table',{class:'rep-table'},
+          el('tr',{}, el('th',{}, 'Stage'), el('th',{}, 'Deals'), el('th',{}, 'Value')),
+          ...stageRows),
+        el('div',{class:'rs-fc-cats'},
+          fcCat('Commit', data.plan.commitVal),
+          fcCat('Weighted', data.plan.weighted),
+          fcCat('Best case', data.plan.bestCase))),
+      el('div',{},
+        el('div',{class:'rs-label'}, 'Forecast vs the month’s number'),
+        planBlock(data.plan)))
+  ));
+
+  // ----- Slide 5: Conversion & velocity -----
+  const fn = data.funnel;
+  const rate = (a,b)=> b>0 ? Math.round(100*a/b)+'%' : '—';
+  slides.push(rsSlide({ eyebrow:'Conversion', title:'Funnel & velocity' },
+    el('div',{class:'rs-two'},
+      el('div',{},
+        el('div',{class:'rs-label'}, 'Conversion funnel (all time)'),
+        el('table',{class:'rep-table'},
+          el('tr',{}, el('th',{}, 'Stage reached'), el('th',{}, 'Deals'), el('th',{}, 'Rate')),
+          el('tr',{}, el('td',{}, 'Leads'), el('td',{}, String(fn.leads)), el('td',{}, '100%')),
+          el('tr',{}, el('td',{}, 'Demoed'), el('td',{}, String(fn.demos)), el('td',{}, rate(fn.demos, fn.leads))),
+          el('tr',{}, el('td',{}, 'Verbal commit'), el('td',{}, String(fn.commits)), el('td',{}, rate(fn.commits, fn.leads))),
+          el('tr',{class:'tot'}, el('td',{}, 'Won'), el('td',{}, String(fn.won)), el('td',{}, rate(fn.won, fn.leads))))),
+      el('div',{},
+        el('div',{class:'rs-label'}, 'This week’s movement'),
+        el('div',{class:'rep-kpis two'},
+          kpiCard('Won this week', String(data.wk.wonCount), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.wonAmt))),
+          kpiCard('New deals', String(data.wk.leads), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.pipeCreated))),
+          kpiCard('Win rate', data.wk.winRate!=null?(data.wk.winRate+'%'):'—', el('span',{class:'rep-delta flat'}, data.wk.wonCount+'W / '+data.wk.lostCount+'L')),
+          kpiCard('Avg cycle', data.avgCycle!=null?(data.avgCycle+'d'):'—', el('span',{class:'rep-delta flat'}, 'lead → won')))))
+  ));
+
+  // ----- Slide 7: Segmentation — where growth comes from -----
+  const sizeOrder = ['Under $20k','$20k–$40k','$40k+','Unsized'];
+  const sizeRows = data.bySize.slice().sort((a,b)=> sizeOrder.indexOf(a.key) - sizeOrder.indexOf(b.key));
+  slides.push(rsSlide({ eyebrow:'Where growth comes from', title:'By source & deal size' },
+    el('div',{class:'rs-two'},
+      el('div',{}, el('div',{class:'rs-label'}, 'By lead source'), segTable(data.bySource.slice(0,6), 'Source')),
+      el('div',{}, el('div',{class:'rs-label'}, 'By deal size'), segTable(sizeRows, 'Band'))),
+    el('p',{class:'rs-foot'}, 'Leads & Won $ are month-to-date; open pipeline & win rate are all-time. Region/state splits need a state field on each deal — say the word and I’ll add one.')
+  ));
+
+  // ----- Slide 8: Rep scoreboard -----
+  const repRows = data.reps.map(r => el('tr',{class:(r.muted?'rep-mut':'') + (data.topRep && r.name===data.topRep.name && !r.muted ? ' top':'')},
+    el('td',{}, r.name), el('td',{}, String(r.leads)), el('td',{}, String(r.demos)), el('td',{}, String(r.commits)),
+    el('td',{}, String(r.wonCount)), el('td',{}, fmtMoneyK(r.wonAmt)), el('td',{}, fmtMoneyK(r.openPipe)),
+    el('td',{}, r.winRate!=null ? (r.winRate+'%') : '—'), el('td',{}, r.avgGrade!=null ? letterGrade(r.avgGrade) : '—'), el('td',{}, String(r.nudges))));
+  const callouts = [];
+  if (data.topRep) callouts.push(el('span',{class:'rep-chip good'}, el('b',{}, '★ Top this week: '), data.topRep.name + ' — ' + fmtMoneyK(data.topRep.wonAmt) + ' won, ' + plur(data.topRep.leads,'lead') + ', ' + plur(data.topRep.demos,'demo')));
+  if (data.behindReps.length) callouts.push(el('span',{class:'rep-chip bad'}, el('b',{}, 'No activity this week: '), data.behindReps.map(r=>r.name).join(', ')));
+  slides.push(rsSlide({ eyebrow:'Team', title:'Rep scoreboard' },
+    el('table',{class:'rep-table'},
+      el('tr',{}, el('th',{}, 'Rep'), el('th',{}, 'Leads'), el('th',{}, 'Demos'), el('th',{}, 'Commits'), el('th',{}, 'Won'), el('th',{}, 'Won $'), el('th',{}, 'Open pipe'), el('th',{}, 'Win rate'), el('th',{}, 'Grade'), el('th',{}, 'Nudges')),
+      ...(repRows.length ? repRows : [el('tr',{}, el('td',{class:'rep-empty', colspan:'10'}, 'No reps on the team yet.'))])),
+    el('div',{class:'rep-callout'}, ...callouts)
+  ));
+
+  // ----- Slide 7: Wins & risks -----
+  const winList = data.wins.length
+    ? el('ul',{class:'rep-list'}, ...data.wins.slice(0,6).map(w => el('li',{},
+        el('span',{}, el('span',{class:'rl-main'}, w.school), el('span',{class:'rl-sub'}, '  ·  ' + w.rep)),
+        el('span',{class:'rl-amt'}, fmtUSD(w.amt)))))
+    : el('div',{class:'rep-empty'}, 'No deals closed won this week.');
+  const riskList = data.atRisk.length
+    ? el('ul',{class:'rep-list'}, ...data.atRisk.slice(0,6).map(x => el('li',{},
+        el('span',{}, el('span',{class:'rl-main'}, x.school), el('span',{class:'rl-sub'}, '  ·  ' + x.rep + ' · ' + x.stage + ' · quiet ' + x.days + 'd')),
+        el('span',{class:'rl-amt warn'}, fmtMoneyK(x.amt)))))
+    : el('div',{class:'rep-empty'}, 'No high-value deals have gone quiet.');
+  const aging = data.agingBuckets.some(b=>b.n)
+    ? el('div',{class:'rs-aging'}, ...data.agingBuckets.map(b => el('div',{class:'rs-age' + (b.n?'':' empty')},
+        el('div',{class:'rs-age-amt'}, fmtMoneyK(b.amt)), el('div',{class:'rs-age-lbl'}, b.label + ' · ' + b.n + ' deal' + (b.n===1?'':'s')))))
+    : null;
+  slides.push(rsSlide({ eyebrow:'Momentum', title:'Wins & risks' },
+    el('div',{class:'rs-two'},
+      el('div',{},
+        el('div',{class:'rs-label good'}, 'Wins this week (' + data.wins.length + ')'), winList,
+        data.losses.length ? el('div',{class:'rs-loss'}, el('b',{}, plur(data.losses.length,'loss') + ': '), data.losses.map(l=>l.school + (l.reason?(' ('+l.reason+')'):'')).join(', ')) : null),
+      el('div',{},
+        el('div',{class:'rs-label bad'}, 'At risk — ' + fmtMoneyK(data.atRiskTotal) + ' of pipeline gone quiet'),
+        aging, riskList))
+  ));
+
+  // ----- Slide 8: The week ahead (dark) -----
+  const aheadItems = data.upcoming.slice(0,6).map(u => el('li',{},
+    el('span',{}, el('span',{class:'rl-main'}, u.school), el('span',{class:'rl-sub'}, '  ·  ' + u.rep + ' · ' + u.stage)),
+    el('span',{class:'rl-sub'}, u.when.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'}))));
+  const aheadList = aheadItems.length ? el('ul',{class:'rep-list'}, ...aheadItems) : el('div',{class:'rep-empty'}, 'No follow-ups booked in the next 7 days.');
+  const closeChips = data.closingSoon.slice(0,6).map(c => el('span',{class:'rep-chip'}, el('b',{}, c.school + ' '), fmtMoneyK(c.amt) + ' · ' + c.rep));
+  slides.push(rsSlide({ dark:true, eyebrow:'The week ahead', title:'What to close next' },
+    el('div',{class:'rs-two'},
+      el('div',{},
+        el('div',{class:'rs-label'}, 'Follow-ups booked — next 7 days'), aheadList),
+      el('div',{},
+        el('div',{class:'rs-label'}, 'Verbal commits to close out'),
+        closeChips.length ? el('div',{class:'rep-callout'}, ...closeChips) : el('div',{class:'rep-empty'}, 'No open verbal commits right now.')))
+  ));
+
+  return slides;
+}
+
+function renderReports(){
+  const body = document.getElementById('reports-body');
+  body.innerHTML = '';
+  const offset = state.reportOffset || 0;
+  const sel = el('select',{class:'rep-week-sel', onChange:(e)=>{ state.reportOffset = Number(e.target.value); renderReports(); }},
+    ...Array.from({length:8}, (_,i)=> el('option', Object.assign({value:String(i)}, i===offset?{selected:'selected'}:{}), weekLabel(reportWeekRange(i)) + (i===0?' (last week)':''))));
+  const printBtn = el('button',{class:'btn ghost', type:'button', onClick:()=>printReportSlides(offset)}, 'Print');
+  const dlBtn = el('button',{class:'btn ghost', type:'button', onClick:(e)=>generateReportSlidesPdf(offset, e.currentTarget)}, 'Download PDF');
+  const presentBtn = el('button',{class:'btn primary', type:'button', onClick:()=>presentReport(offset, 0)},
+    el('span',{html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>'}), 'Present');
+  body.appendChild(el('div',{class:'rep-head'},
+    el('div',{}, el('h1',{class:'lb-title'}, 'Weekly report'), el('p',{class:'lb-sub'}, 'Exec summary + rep scoreboard as a slideshow. Pick a week, then present full-screen, download, or print. Click any slide to present from it.')),
+    el('div',{class:'rep-controls'}, el('span',{class:'rep-week-lbl'}, 'Week'), sel, printBtn, dlBtn, presentBtn)));
+  if (!getDecks().length){ body.appendChild(el('p',{class:'muted', style:'padding:20px 4px'}, 'No deals in the system yet — add leads to generate a report.')); return; }
+  const data = weeklyReportData(offset);
+  const grid = el('div',{class:'rep-thumbs'});
+  buildReportSlides(data).forEach((sec, i) => {
+    const inner = sec.querySelector('.slide-inner');
+    const isDark = sec.classList.contains('dark');
+    grid.appendChild(el('div',{class:'rep-thumb' + (isDark?' dark':''), title:'Slide ' + (i+1) + ' — click to present', onClick:()=>presentReport(offset, i)},
+      el('span',{class:'rep-thumb-num'}, String(i+1)),
+      el('div',{class:'rep-thumb-scale'}, inner)));
+  });
+  body.appendChild(grid);
+}
+
+/* Present the report through the deck's full-screen slide presenter. */
+function presentReport(offset, startSlide){
+  state.reportData = weeklyReportData(offset);
+  state.deckMode = 'report';
+  state.section = 'reports';        // so the back button returns to the Reports tab
+  state.view = 'deck';
+  state.slide = startSlide || 0;
+  state.d = { leadName: 'Weekly Report' };
+  closeModal();
+  hideAllSections();
+  renderDeck();
+}
+
+/* Landscape slides PDF — mirrors composeSlidesPdf but builds report slides directly. */
+async function composeReportSlidesPdf(data, setLabel){
+  setLabel = setLabel || (()=>{});
+  await ensurePdfLibs();
+  if (document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;width:1280px;height:720px;overflow:hidden;z-index:-1;';
+  document.body.appendChild(host);
+  const noTrans = document.createElement('style');
+  noTrans.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
+  document.head.appendChild(noTrans);
+  try {
+    const slides = buildReportSlides(data);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'landscape', unit:'px', format:[1280,720], compress:true });
+    for (let i=0;i<slides.length;i++){
+      const node = slides[i];
+      node.classList.add('slide');
+      const inner = node.querySelector('.slide-inner');
+      const canvas = document.createElement('div');
+      canvas.className = 'slide-canvas';
+      node.insertBefore(canvas, inner);
+      canvas.appendChild(inner);
+      node.style.cssText = 'position:relative;opacity:1;transform:none;pointer-events:auto;display:flex;align-items:center;justify-content:center;width:1280px;height:720px;';
+      canvas.style.transform = 'none';
+      host.replaceChildren(node);
+      setLabel('Rendering ' + (i+1) + ' / ' + slides.length + '…');
+      const bg = node.classList.contains('dark') ? '#1E1715' : node.classList.contains('surface') ? '#F8F8F8' : '#ffffff';
+      const shot = await window.html2canvas(canvas, { scale:2, useCORS:true, allowTaint:false, backgroundColor:bg, imageTimeout:15000, width:1280, height:720, windowWidth:1280, windowHeight:720, logging:false });
+      const img = shot.toDataURL('image/jpeg', 0.92);
+      if (i>0) pdf.addPage([1280,720],'landscape');
+      pdf.addImage(img,'JPEG',0,0,1280,720);
+    }
+    return pdf;
+  } finally { host.remove(); noTrans.remove(); }
+}
+async function generateReportSlidesPdf(offset, btn){
+  const origHTML = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Building…';
+  try {
+    const data = weeklyReportData(offset);
+    const pdf = await composeReportSlidesPdf(data, (t)=>{ btn.innerHTML = t; });
+    pdf.save('GearLocker Weekly Report — ' + weekLabel(data.cur).replace(/[,–]/g,'').replace(/\s+/g,' ').trim() + '.pdf');
+  } catch(e){
+    console.error('weekly report export failed', e);
+    alert('Sorry — the report export hit an error:\n\n' + (e && e.message ? e.message : e) + '\n\nPlease try again.');
+  } finally { btn.disabled = false; btn.innerHTML = origHTML; }
+}
+function printReportSlides(offset){
+  const data = weeklyReportData(offset);
+  const w = window.open('', '_blank');
+  if (!w){ alert('Please allow pop-ups to print the report (or use Download PDF).'); return; }
+  const styles = Array.prototype.slice.call(document.querySelectorAll('style, link[rel="stylesheet"]')).map(n=>n.outerHTML).join('\n');
+  w.document.open();
+  w.document.write('<!doctype html><html><head><title>GearLocker Weekly Report</title>' + styles +
+    '<style>@page{ size:1280px 720px; margin:0; } html,body{ margin:0; padding:0; background:#fff; } .rep-print-slide{ width:1280px; height:720px; overflow:hidden; page-break-after:always; position:relative; }</style></head><body></body></html>');
+  buildReportSlides(data).forEach(sec => {
+    const inner = sec.querySelector('.slide-inner');
+    const isDark = sec.classList.contains('dark');
+    const wrap = w.document.createElement('div');
+    wrap.className = 'rep-print-slide' + (isDark?' dark':'');
+    if (isDark) wrap.style.background = '#1E1715';
+    wrap.appendChild(w.document.importNode(inner, true));
+    w.document.body.appendChild(wrap);
+  });
+  w.document.close();
+  setTimeout(()=>{ try { w.focus(); w.print(); } catch(e){} }, 500);
 }
 
 /* ---------- Email the deck + proposal from the rep's Gmail ---------- */
@@ -7543,7 +8352,7 @@ function openEmailModal(deck, opts){
       el('label',{class:'email-attach-row'+(ready.ready?'':' is-disabled')}, attachPropCb, el('span',{},'Proposal (PDF)')),
       ready.ready ? null : el('div',{class:'email-attach-warn'},
         'Finish the presentation before attaching — missing ' + ready.missing.join(' and ') + '. ',
-        el('button',{class:'email-attach-link', type:'button', onClick:()=>{ closeModal(); openDeck(deck.id); }}, 'Open the deck →'))),
+        el('button',{class:'email-attach-link', type:'button', onClick:()=>{ closeModal(); openDeckTab(deck.id); }}, 'Open the deck →'))),
     status,
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
@@ -7588,6 +8397,7 @@ function saveCurrentDeck(){
 function backToDashboard(){
   saveCurrentDeck();
   state.deckId = null;
+  state.deckMode = 'deck';
   document.getElementById('topbar').classList.remove('dark');
   document.getElementById('bottombar').classList.remove('dark');
   document.getElementById('lead-tag').style.display = 'none';
@@ -7622,6 +8432,15 @@ async function initDashboard(){
     if (res.blocked){ setSyncBadge('offline'); showSessionGate(); return; }   // RLS blocked the anon key → get a session first
   } else {
     setSyncBadge('local');
+  }
+  // Launched straight onto a deck (?deck=ID, opened in its own tab) → present it, skip the CRM shell.
+  const deckParam = new URLSearchParams(location.search).get('deck');
+  if (deckParam && getDecks().some(d => d.id === deckParam)){
+    IS_DECK_TAB = true;
+    const rb = document.getElementById('reset-btn'); if (rb) rb.title = 'Close this tab';
+    loadGActivity();     // cached Google activity so the timeline/AI has context
+    openDeck(deckParam);
+    return;
   }
   showSection('today');   // land on the AI "start my day" briefing
   runAutoTasks();   // auto-grade calls + auto-check follow-ups in the background (throttled, silent)
@@ -7842,7 +8661,7 @@ function renderDeck() {
   const dots = document.getElementById('dots');
   dots.innerHTML = '';
   slides.forEach((_, i) => {
-    const isDiscovery = i >= 1 && i <= 5;
+    const isDiscovery = state.deckMode !== 'report' && i >= 1 && i <= 5;
     const d = el('div', {
       class: 'dot ' + (isDiscovery ? 'discovery' : '') + (i === state.slide ? ' is-active' : ''),
       title: isDiscovery ? 'Discovery slide' : 'Slide ' + (i+1),
@@ -7852,12 +8671,16 @@ function renderDeck() {
   });
 
   document.getElementById('slide-count').textContent = (state.slide + 1) + ' / ' + slides.length;
-  document.getElementById('lead-tag').textContent = state.d.leadName;
+  document.getElementById('lead-tag').textContent = state.deckMode === 'report'
+    ? ('Weekly Report · ' + weekLabel(state.reportData.cur))
+    : state.d.leadName;
   document.getElementById('lead-tag').style.display = '';
   document.getElementById('reset-btn').style.display = '';
 
-  // dark chrome on final slide
-  const isDark = state.slide === slides.length - 1;
+  // dark chrome: report → whichever slide is itself dark; deck → the final slide
+  const isDark = state.deckMode === 'report'
+    ? slides[state.slide].classList.contains('dark')
+    : state.slide === slides.length - 1;
   document.getElementById('topbar').classList.toggle('dark', isDark);
   document.getElementById('bottombar').classList.toggle('dark', isDark);
 
@@ -7872,6 +8695,7 @@ function renderDeck() {
 
 /* ---------- Slide builders ---------- */
 function buildSlides() {
+  if (state.deckMode === 'report') return buildReportSlides(state.reportData);
   const d = state.d;
   const school = d.leadName || 'your school';
   return [
@@ -8542,36 +9366,21 @@ function buildDashboardMock() {
 
 /* ----- Slide 9: SIS setup ----- */
 function buildSISSetup(school, d) {
-  const map = {'Clever':'clever','ClassLink':'classlink','Veracross':'veracross','TeamSnap':'teamsnap','SportsEngine':'sportsengine'};
-  const featured = [
-    ['Clever','SSO + roster sync'],
-    ['ClassLink','SSO + roster sync'],
-    ['Veracross','Independent schools'],
-    ['TeamSnap','Youth & club programs'],
-    ['SportsEngine','Activities & teams']
+  const integrations = [
+    { name:'Clever',          img:'assets/slides/int-clever.jpg' },
+    { name:'ClassLink',       img:'assets/slides/int-classlink.jpg' },
+    { name:'Infinite Campus', img:'assets/slides/int-infinitecampus.jpg' },
+    { name:'Skyward',         img:'assets/slides/int-skyward.jpg' },
+    { name:'Veracross',       img:'assets/slides/int-veracross.jpg' },
+    { name:'Blackbaud',       img:'assets/slides/int-blackbaud.jpg' },
+    { name:'TeamSnap',        img:'assets/slides/int-teamsnap.jpg' },
+    { name:'SportsEngine',    img:'assets/slides/int-sportsengine.jpg' }
   ];
   const userSis = d.sis;
-  const userIsFeatured = userSis && featured.find(f => f[0] === userSis);
-  const userIsExtra = userSis && !userIsFeatured && userSis !== 'Other / Not sure';
-
-  const cards = featured.map(([name, sub]) => el('div', {
-    class: 'sis-card ' + map[name] + (userSis === name ? ' match' : '')
-  },
-    el('div', {class:'sis-name'}, name),
-    el('div', {class:'sis-sub'}, sub)
-  ));
-  if (userIsExtra) {
-    cards.push(el('div', {class:'sis-card other match'},
-      el('div', {class:'sis-name'}, userSis),
-      el('div', {class:'sis-sub'}, 'We integrate with this')
-    ));
-  } else {
-    cards.push(el('div', {class:'sis-card other'},
-      el('div', {class:'sis-name', style:'font-size:16px;line-height:1.3'}, 'Or CSV import'),
-      el('div', {class:'sis-sub'}, "Don't have a system? We'll load it for you.")
-    ));
-  }
-
+  const tiles = integrations.map(it => el('div', {
+    class: 'int-tile' + (userSis === it.name ? ' match' : ''),
+    style: "background-image:url('" + it.img + "')"
+  }));
   const headline = userSis && userSis !== 'Other / Not sure'
     ? 'You\'re on ' + userSis + '. We\'ll connect on day one.'
     : 'Your rosters, automatically loaded.';
@@ -8581,7 +9390,8 @@ function buildSISSetup(school, d) {
       el('div', {class:'eyebrow'}, el('span',{class:'dot'}), 'It all starts with easy setup'),
       el('h2', {class:'h1 tight'}, headline),
       el('p', {class:'lead'}, 'Connect to your student information system or registration platform — rosters update automatically. No double entry, no "who\'s on the team this year" sheets.'),
-      el('div', {class:'grid-3', style:'margin-top:48px'}, ...cards)
+      el('div', {class:'int-grid'}, ...tiles),
+      el('p', {class:'int-foot'}, 'Use something else, or no system at all? We\'ll load your rosters by CSV — no problem.')
     )
   );
 }
@@ -8596,26 +9406,17 @@ function buildQR() {
       el('div', {class:'grid-3', style:'margin-top:40px'},
         el('div', {class:'label-card'},
           el('div', {class:'label-head'}, 'QR Sticker Labels'),
-          el('div', {class:'label-visual sticker'},
-            el('div', {class:'label-qr-chip', html: ICON.qr.replace('class="qr-svg"','class="qr-svg" style="width:48px;height:48px"')})
-          ),
+          el('div', {class:'label-visual photo', style:"background-image:url('assets/slides/bagtag-helmet.jpg')"}),
           el('div', {class:'label-body'}, 'For helmets, shoulder pads, equipment that needs visibility and durability. NFC upgrade adds tap-to-scan.')
         ),
         el('div', {class:'label-card'},
           el('div', {class:'label-head'}, 'Heat-Press Apparel Labels'),
-          el('div', {class:'label-visual heat'},
-            el('div', {class:'label-qr-chip', style:'display:flex;align-items:center;gap:8px;font-size:9px;font-weight:600;padding:6px 8px'},
-              el('div', {html: ICON.qr.replace('class="qr-svg"','class="qr-svg" style="width:24px;height:24px"')}),
-              'gearlocker | DEV-6A8'
-            )
-          ),
+          el('div', {class:'label-visual photo', style:"background-image:url('assets/slides/bagtag-jersey.jpg')"}),
           el('div', {class:'label-body'}, "For uniforms, warmups, anything laundry-heavy. Heat-pressed — won't peel, crack, or fade through seasons of washing.")
         ),
         el('div', {class:'label-card'},
           el('div', {class:'label-head'}, 'Heavy-Duty Bag Tags'),
-          el('div', {class:'label-visual bag'},
-            el('div', {class:'label-qr-chip', html: ICON.qr.replace('class="qr-svg"','class="qr-svg" style="width:40px;height:40px"')})
-          ),
+          el('div', {class:'label-visual photo', style:"background-image:url('assets/slides/bagtag-bag.jpg')"}),
           el('div', {class:'label-body'}, 'For duffels, backpacks, sideline storage. Includes key ring for easy attachment.')
         )
       ),
@@ -9155,6 +9956,12 @@ document.getElementById('next-btn').addEventListener('click', (e) => {
   e.currentTarget.blur();
 });
 document.getElementById('reset-btn').addEventListener('click', () => {
+  if (IS_DECK_TAB){
+    saveCurrentDeck();        // persist any edits before the tab goes away
+    window.close();           // this tab was opened via window.open, so close() is allowed
+    setTimeout(backToDashboard, 120);   // fallback if the browser refuses to close it
+    return;
+  }
   backToDashboard();
 });
 window.addEventListener('keydown', e => {
