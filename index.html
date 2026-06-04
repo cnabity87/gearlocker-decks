@@ -2039,6 +2039,10 @@
   .tl-meta { font-size: 12.5px; color: var(--ink-4); margin-top: 3px; }
   .tl-content .lead-tl-email-body { padding: 10px 0 2px 0; margin-top: 6px; border-top: 1px solid var(--border); }
   .lead-timeline.mini .tl-item { padding-bottom: 15px; }
+  .tl-muted .tl-title { font-weight: 500; color: var(--ink-3); font-size: 13px; }
+  .tl-muted .tl-node { color: var(--ink-4); }
+  .nudge-warn { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fff5ec; border: 1px solid #f3c89b; color: #8a4d12; border-radius: var(--radius-md); padding: 13px 16px; margin: 0 0 22px; font-size: 13px; line-height: 1.45; }
+  .nudge-warn button { flex-shrink: 0; }
   .lead-actionbar { display: flex; gap: 8px; margin-top: 18px; }
   .lead-action-btn { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink-2); padding: 8px 14px; }
   .lead-action-btn:hover { border-color: var(--ink-3); color: var(--ink); }
@@ -3128,8 +3132,9 @@ function stageChip(deck){
   return el('span',{class:'stage-chip stage-' + s, title: stageMeta(s).label}, stageMeta(s).short);
 }
 function dealAmount(deck){
-  if (deck && deck.amount != null && deck.amount !== '') return Number(deck.amount) || 0;
-  const t = pickTier(deck && deck.enrollment);   // fall back to the matched pricing-tier annual
+  if (deck && deck.amount != null && deck.amount !== '') return Number(deck.amount) || 0;   // manual forecast override wins
+  if (deck && deck.enrollment && Number(deck.enrollment) > 0) return quoteFor(deck).netAnnual;  // quoted annual (incl. overrides + discount)
+  const t = pickTier(deck && deck.enrollment);   // else fall back to the matched pricing-tier annual
   return t ? t.annual : 0;
 }
 function dealNeedsNudge(deck){ if (!isOpenDeal(deck)) return false; if (hasUpcomingFollowup(deck)) return false; const q = daysQuiet(deck); return q != null && q >= nudgeThreshold(); }
@@ -3364,10 +3369,13 @@ function openEditModal(deck){
     const newStage = stageSelect.value;
     const sd = Object.assign({}, deck.stageDates||{});
     if (newStage && !sd[newStage]) sd[newStage] = new Date().toISOString();
+    let hist = deck.history;
+    if ((deck.salespersonId||'') !== repSelect.value){ const nm = (getTeam().find(p=>p.id===repSelect.value)||{}).name || 'Unassigned'; hist = pushHist(hist, 'owner', 'Owner → ' + nm); }
+    if (dealStage(deck) !== newStage) hist = pushHist(hist, 'stage', 'Stage → ' + stageMeta(newStage).label);
     upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value, stage: newStage, stageDates: sd,
       contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim(),
       contactPhone: phoneInput.value.trim(), amount: amountInput.value.trim(), leadSource: sourceSelect.value,
-      updatedAt: new Date().toISOString() }));
+      history: hist, updatedAt: new Date().toISOString() }));
     closeModal();
     renderDashboard();
   };
@@ -3854,7 +3862,8 @@ const TL_ICON = {
   mail:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>',
   cal:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
   check:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-  note:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
+  note:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  log:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>'
 };
 function deckTasks(deck){ return Array.isArray(deck.tasks) ? deck.tasks : []; }
 function saveDeckPatch(deck, patch){ const cur = DB.decks.find(x=>x.id===deck.id)||deck; const u = Object.assign({}, cur, patch, { updatedAt:new Date().toISOString() }); upsertDeck(u); return u; }
@@ -3865,6 +3874,8 @@ function deckActivities(deck){ return Array.isArray(deck.activities) ? deck.acti
 function addActivity(deck, type, text){ const activities = deckActivities(deck).slice(); activities.push({ id:uid('a_'), type:type, date:new Date().toISOString(), text:text, by:(AUTH&&AUTH.name)||'' }); return saveDeckPatch(deck, { activities }); }
 function addNote(deck, text){ return addActivity(deck, 'note', text); }
 function addCall(deck, text){ return addActivity(deck, 'call', text); }
+// Lightweight audit log: append {at, by, type, detail} to deck.history, return the new array (cap 60).
+function pushHist(arr, type, detail){ const h = (Array.isArray(arr) ? arr : []).slice(); h.push({ at:new Date().toISOString(), by:(AUTH&&AUTH.name)||'', type:type, detail:detail }); return h.slice(-60); }
 function infoRow(k, v){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, k), el('span',{class:'lead-info-v'}, v)); }
 function leadTimeline(deck, meetings, emails){
   const ev = [];
@@ -3882,6 +3893,7 @@ function leadTimeline(deck, meetings, emails){
     if (a.type==='note') ev.push({ date:a.date, icon:TL_ICON.note, title:'Note' + who, note:a.text });
     else if (a.type==='call') ev.push({ date:a.date, icon:TL_ICON.phone, title:'Call logged' + who, note:a.text });
   });
+  (Array.isArray(deck.history) ? deck.history : []).forEach(h => ev.push({ date:h.at, icon:TL_ICON.log, title:h.detail || 'Updated', sub:(h.by ? String(h.by).split(/\s+/)[0] : '') + '  ·  log', muted:true }));
   (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
   (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }));
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -4199,7 +4211,7 @@ function renderLead(deck){
 }
 function renderLeadOverview(deck, content, sp, contact){
   const amtInput = el('input',{type:'number', min:'0', step:'100', value:(deck.amount!=null&&deck.amount!=='')?deck.amount:'', placeholder:String(dealAmount(deck)), class:'lead-amt'});
-  amtInput.addEventListener('change', ()=>{ saveDeckPatch(deck, { amount: amtInput.value.trim() }); });
+  amtInput.addEventListener('change', ()=>{ const cur = DB.decks.find(x=>x.id===deck.id) || deck; const v = amtInput.value.trim(); saveDeckPatch(deck, { amount: v, history: pushHist(cur.history, 'forecast', 'Forecast → ' + (v ? ('$'+(Number(v)||0).toLocaleString()) : 'standard')) }); });
   const left = el('div',{class:'lead-left'},
     el('div',{class:'lead-card'},
       el('div',{class:'lead-card-h'},'Deal'),
@@ -4234,13 +4246,14 @@ function renderLeadOverview(deck, content, sp, contact){
   fillTimeline(mini, deck, { limit:5, expandable:false });
   content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, ovCard, nxCard, actCard)));
 }
-const AI_SIG_V = 'ai2';   // bump when the AI prompt/output shape changes to invalidate cached overviews
+const AI_SIG_V = 'ai3';   // bump when the AI prompt/output shape changes to invalidate cached overviews
 function leadAISig(deck){
   const acts = deckActivities(deck), tasks = deckTasks(deck);
-  const em = cachedEmailsFor(deck), mt = cachedMeetingsFor(deck);
-  return [ AI_SIG_V, dealStage(deck), deck.emailedAt||'', deck.callGrade?(deck.callGrade.analyzedAt||deck.callGrade.meetingDate||'y'):'',
+  // built from PERSISTED, shared fields only (not per-user session caches) so the saved overview is stable across reps
+  return [ AI_SIG_V, dealStage(deck), deck.emailedAt||'', deck.lastEmailAt||'', deck.lastMeetingAt||'',
+    deck.callGrade?(deck.callGrade.analyzedAt||deck.callGrade.meetingDate||'y'):'',
     acts.length, acts.length?acts[acts.length-1].date:'', tasks.length, tasks.filter(t=>t.done).length,
-    em.length, mt.length, (deck.followup&&deck.followup.startTime)||'' ].join('|');
+    (deck.followup&&deck.followup.startTime)||'' ].join('|');
 }
 function buildLeadAIPayload(deck){
   const g = deck.callGrade || {};
@@ -4267,29 +4280,31 @@ async function generateLeadAI(deck){
   return data;
 }
 function aiLoading(msg){ return el('div',{class:'lead-ai-loading'}, el('span',{class:'lead-ai-spin'}), el('span',{}, msg||'Reading the account…')); }
-const AI_CACHE = {};   // session cache: { 'deckId|sig': {overview, recommendation, ...} }
+const AI_BUSY = {};   // in-flight guard, keyed by deckId|sig
+function renderLeadAICached(cur, c, ovBody, nxBody){
+  ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-text'}, c.overview || 'No overview yet.'));
+  nxBody.innerHTML=''; nxBody.appendChild(el('div',{class:'lead-ai-text'}, c.recommendation || '—'));
+  nxBody.appendChild(el('button',{class:'btn sm', style:'margin-top:14px', type:'button', onClick:()=>openEmailModal(cur, c.emailBody ? { attach:false, draft:{ subject:c.emailSubject, body:c.emailBody, recommendation:c.recommendation } } : { attach:false, autodraft:true })}, 'Draft email →'));
+}
 function paintLeadAI(deck, ovBody, nxBody){
   const cur = DB.decks.find(d=>d.id===deck.id) || deck;
   const sig = leadAISig(cur);
-  const key = cur.id + '|' + sig;
-  const cached = AI_CACHE[key];
-  if (cached){
-    ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-text'}, cached.overview || 'No overview yet.'));
-    nxBody.innerHTML=''; nxBody.appendChild(el('div',{class:'lead-ai-text'}, cached.recommendation || '—'));
-    nxBody.appendChild(el('button',{class:'btn sm', style:'margin-top:14px', type:'button', onClick:()=>openEmailModal(cur, cached.emailBody ? { attach:false, draft:{ subject:cached.emailSubject, body:cached.emailBody, recommendation:cached.recommendation } } : { attach:false, autodraft:true })}, 'Draft email →'));
-    return;
-  }
+  // persisted, shared cache on the deck — survives sessions, only regenerates when the deal actually changes
+  if (cur.ai && cur.ai.sig === sig && cur.ai.overview){ renderLeadAICached(cur, cur.ai, ovBody, nxBody); return; }
   ovBody.innerHTML=''; ovBody.appendChild(aiLoading('Reading the account…'));
   nxBody.innerHTML=''; nxBody.appendChild(aiLoading('Working out the next step…'));
   if (!SUPABASE_URL){ ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-err'},'Cloud isn’t configured.')); nxBody.innerHTML=''; return; }
-  if (AI_CACHE['_busy_'+key]) return;
-  AI_CACHE['_busy_'+key] = true;
+  const key = cur.id + '|' + sig;
+  if (AI_BUSY[key]) return;
+  AI_BUSY[key] = true;
   generateLeadAI(cur).then(data => {
-    delete AI_CACHE['_busy_'+key];
-    AI_CACHE[key] = { overview:data.overview||'', recommendation:data.recommendation||'', emailSubject:data.emailSubject||'', emailBody:data.emailBody||'' };
+    delete AI_BUSY[key];
+    if (data && data.overview){
+      saveDeckPatch(cur, { ai: { sig, overview:data.overview, recommendation:data.recommendation||'', emailSubject:data.emailSubject||'', emailBody:data.emailBody||'', at:new Date().toISOString() } });
+    }
     if (state.view==='lead' && state.leadId===cur.id && (state.leadTab||'overview')==='overview') renderLead(cur);
   }).catch(e => {
-    delete AI_CACHE['_busy_'+key];
+    delete AI_BUSY[key];
     if (state.view==='lead' && state.leadId===cur.id){
       ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-err'}, 'Couldn’t generate — ' + (e&&e.message?e.message:e)));
       nxBody.innerHTML='';
@@ -4421,7 +4436,7 @@ function renderLeadProposal(deck, content){
   card.appendChild(summary);
   refresh();
   const status = el('span',{class:'lead-tl-sub'}, deck.quote ? 'Custom quote saved' : '');
-  const save = () => { saveDeckPatch(deck, { quote: { annual: annualInput.value.trim(), onboarding: onbInput.value.trim(), sis: sisCb.checked, discountType: discType.value, discountValue: discVal.value.trim() } }); status.textContent = 'Saved ✓'; };
+  const save = () => { const cur = DB.decks.find(x=>x.id===deck.id) || deck; const quote = { annual: annualInput.value.trim(), onboarding: onbInput.value.trim(), sis: sisCb.checked, discountType: discType.value, discountValue: discVal.value.trim() }; const yr1 = quoteFor(Object.assign({}, cur, { quote: quote })).year1; saveDeckPatch(deck, { quote: quote, history: pushHist(cur.history, 'quote', 'Quote updated — ' + fmtMoney(yr1) + ' first-year') }); status.textContent = 'Saved ✓'; };
   const reset = () => { saveDeckPatch(deck, { quote: null }); state.leadTab='proposal'; renderLead(DB.decks.find(x=>x.id===deck.id) || deck); };
   card.appendChild(el('div',{class:'qt-foot'},
     el('button',{class:'btn sm primary', type:'button', onClick:save}, 'Save quote'),
@@ -4464,7 +4479,7 @@ function tlNode(e, opts){
     });
   } else if (e.onClick){ head.classList.add('clickable'); head.addEventListener('click', e.onClick); }
   if (e.note) content.appendChild(el('div',{class:'tl-note-body'}, e.note));
-  return el('div',{class:'tl-item'}, node, content);
+  return el('div',{class:'tl-item' + (e.muted ? ' tl-muted' : '')}, node, content);
 }
 
 /* ---------- CRM section navigation ---------- */
@@ -4535,6 +4550,11 @@ function renderTasksSection(){
   openTasks.sort((a,b)=> String(a.task.due||'9999-99').localeCompare(String(b.task.due||'9999-99')));
   const nudges = decks.filter(dealNeedsNudge).sort((a,b)=> (daysQuiet(b)||0) - (daysQuiet(a)||0));
   body.appendChild(el('h1',{class:'lb-title'},'Nudges & Tasks'));
+  if (AUTH && GOOGLE_CLIENT_ID && !(AUTH.gmail === true || GACTIVITY.syncedAt)){
+    body.appendChild(el('div',{class:'nudge-warn'},
+      el('span',{}, 'Nudges may be inaccurate — without Gmail connected, your email replies and meetings don’t count as contact, so deals can look quieter than they are.'),
+      el('button',{class:'btn sm primary', type:'button', onClick:()=>openSettingsPage('google')}, 'Connect Gmail')));
+  }
   body.appendChild(el('p',{class:'lb-sub'}, openTasks.length + ' open task' + (openTasks.length===1?'':'s') + '  ·  ' + nudges.length + ' deal' + (nudges.length===1?'':'s') + ' needing a nudge. Work the list and clear it out.'));
 
   body.appendChild(el('div',{class:'nt-sec'}, 'Open tasks (' + openTasks.length + ')'));
@@ -4623,9 +4643,12 @@ function renderMetrics(){
 }
 function setDeckStage(deckId, newStage){
   const cur=DB.decks.find(x=>x.id===deckId); if(!cur) return;
+  const old=dealStage(cur);
   const sd=Object.assign({}, cur.stageDates||{});
   if (newStage && !sd[newStage]) sd[newStage]=new Date().toISOString();
-  upsertDeck(Object.assign({}, cur, { stage:newStage, stageDates:sd, updatedAt:new Date().toISOString() }));
+  const patch = { stage:newStage, stageDates:sd, updatedAt:new Date().toISOString() };
+  if (old !== newStage) patch.history = pushHist(cur.history, 'stage', 'Stage → ' + stageMeta(newStage).label);
+  upsertDeck(Object.assign({}, cur, patch));
 }
 
 /* ---------- Daily digest: "what needs attention today" ---------- */
