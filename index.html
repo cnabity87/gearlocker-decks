@@ -1880,8 +1880,11 @@
   #deck-search { width: 100%; box-sizing: border-box; font: inherit; font-size: 14px; padding: 11px 14px 11px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); }
   #deck-search:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
   #deck-search::placeholder { color: var(--ink-4); }
-  #deck-sort { font: inherit; font-size: 14px; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); cursor: pointer; }
-  #deck-sort:focus { outline: none; border-color: var(--ink); }
+  #deck-sort, #deck-filter { font: inherit; font-size: 14px; padding: 11px 36px 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink); cursor: pointer; -webkit-appearance: none; appearance: none; background: var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 13px center; }
+  #deck-sort:focus, #deck-filter:focus { outline: none; border-color: var(--ink); }
+  .row-rep { font: inherit; font-size: 13px; width: 100%; max-width: 100%; padding: 5px 24px 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 8px center; color: var(--ink); cursor: pointer; -webkit-appearance: none; appearance: none; text-overflow: ellipsis; }
+  .row-rep:focus { outline: none; border-color: var(--accent); }
+  .row-rep.unassigned { color: var(--accent); border-color: var(--accent); border-style: dashed; font-weight: 600; }
   .deck-none { text-align: center; padding: 48px 24px; color: var(--ink-4); font-size: 14.5px; border: 1px dashed var(--border); border-radius: var(--radius-md); background: var(--paper); }
   .deck-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
   .deck-pager.hidden { display: none; }
@@ -1898,7 +1901,7 @@
   }
 
   .deck-list { display: flex; flex-direction: column; gap: 8px; overflow-x: auto; }
-  .deck-cols { display: grid; grid-template-columns: minmax(0,1.9fr) minmax(0,1.5fr) 116px 116px 108px minmax(0,1.05fr) 348px; align-items: center; gap: 18px; min-width: 1096px; }
+  .deck-cols { display: grid; grid-template-columns: minmax(0,1.9fr) minmax(0,1.5fr) 116px 116px 108px 150px 376px; align-items: center; gap: 18px; min-width: 1228px; }
   .deck-thead { padding: 2px 22px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
   .deck-thead .th-actions { text-align: right; }
   .deck-row {
@@ -1951,13 +1954,16 @@
   .setting-fields input { width: 118px; box-sizing: border-box; font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); }
   .setting-fields input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
   .modal-foot.split { justify-content: space-between; }
-  .settings-main { max-width: 760px; margin: 0 auto; padding: 40px 40px 100px; }
-  .settings-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; color: var(--ink); }
+  .settings-main { max-width: 1040px; margin: 0 auto; padding: 40px 40px 100px; }
+  .settings-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 20px; color: var(--ink); }
   .settings-subtitle { font-size: 15px; color: var(--ink-3); margin: 0 0 6px; line-height: 1.5; }
-  .settings-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: 4px 0 24px; }
-  .settings-tab { font: inherit; font-size: 14px; font-weight: 600; color: var(--ink-4); background: none; border: none; border-bottom: 2px solid transparent; padding: 10px 16px; margin-bottom: -1px; cursor: pointer; transition: color .15s var(--easing), border-color .15s var(--easing); }
-  .settings-tab:hover { color: var(--ink-2); }
-  .settings-tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .settings-layout { display: flex; gap: 30px; align-items: flex-start; }
+  .settings-tabs { display: flex; flex-direction: column; gap: 2px; width: 188px; flex-shrink: 0; position: sticky; top: 24px; }
+  .settings-tab { font: inherit; font-size: 14px; font-weight: 600; text-align: left; color: var(--ink-4); background: none; border: none; border-left: 2px solid transparent; border-radius: 0 6px 6px 0; padding: 9px 14px; cursor: pointer; transition: color .15s var(--easing), background .15s var(--easing), border-color .15s var(--easing); }
+  .settings-tab:hover { color: var(--ink-2); background: var(--wash); }
+  .settings-tab.active { color: var(--ink); background: var(--wash); border-left-color: var(--accent); }
+  .settings-body-wrap { flex: 1 1 auto; min-width: 0; }
+  @media (max-width: 760px){ .settings-layout { flex-direction: column; } .settings-tabs { flex-direction: row; flex-wrap: wrap; width: auto; position: static; } .settings-tab { border-left: none; border-bottom: 2px solid transparent; border-radius: 6px; } .settings-tab.active { border-left: none; border-bottom-color: var(--accent); } }
   .lead-main { max-width: 1080px; margin: 0 auto; padding: 36px 40px 100px; }
   .lead-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
   .lead-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 4px; }
@@ -2029,6 +2035,26 @@
   .seq-subj { width: 100%; font: inherit; font-size: 13.5px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); }
   .seq-body-input { width: 100%; font: inherit; font-size: 13px; line-height: 1.5; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); resize: vertical; }
   .seq-step-add { display: flex; gap: 8px; margin-top: 10px; }
+  /* Lead-source editor */
+  .src-editor { display: flex; flex-direction: column; gap: 12px; }
+  .src-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .src-name-input { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 14px; font-weight: 700; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .src-name-input:focus, .src-sub-input:focus { outline: none; border-color: var(--accent); }
+  .src-subs-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-4); margin-bottom: 6px; }
+  .src-subs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .src-sub-row { display: flex; align-items: center; gap: 6px; }
+  .src-sub-input { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13.5px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--wash); }
+  /* Milestones card */
+  .ms-row { align-items: center; }
+  .ms-date { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); cursor: pointer; }
+  .ms-date:focus { outline: none; border-color: var(--accent); }
+  .ms-date:disabled { opacity: .5; cursor: default; }
+  .ms-hint { color: var(--ink-4); cursor: help; font-size: 11px; }
+  .ms-paid { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 12px; }
+  .ms-paid-wrap { display: flex; align-items: center; gap: 10px; }
+  .ms-paid-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; }
+  .ms-paid-yes { color: #1f7d45; font-weight: 700; }
+  .paid-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; color: #1f7d45; background: rgba(31,157,85,.14); border-radius: 999px; padding: 2px 9px; }
   .lead-task.done .lead-task-cb { color: var(--ink-4); text-decoration: line-through; }
   .lead-task-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
   .lead-task-due { font-size: 12px; color: var(--ink-4); font-weight: 600; }
@@ -2129,6 +2155,7 @@
   .today-snooze-dwrap { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink); }
   .today-snooze-date { font: inherit; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; width: 130px; }
   /* progress + group headers */
+  .today-refreshing { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-4); margin-bottom: 10px; }
   .today-progress { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
   .today-prog-bar { flex: 1 1 auto; height: 7px; border-radius: 4px; background: var(--wash); overflow: hidden; max-width: 360px; }
   .today-prog-fill { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
@@ -2294,13 +2321,23 @@
   .lb-title { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; margin: 0 0 8px; }
   .lb-sub { font-size: 14px; color: var(--ink-3); margin: 0 0 28px; line-height: 1.5; max-width: 720px; }
   /* analytics dashboard */
-  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 0 0 28px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 12px; margin: 0 0 28px; }
   .kpi { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; }
   .kpi-val { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .kpi-lbl { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-4); margin-top: 6px; }
+  .kpi-lbl { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-4); margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; }
+  .info-tip { display: inline-flex; align-items: center; color: var(--ink-4); cursor: help; opacity: .65; }
+  .info-tip:hover { opacity: 1; color: var(--accent); }
+  .mx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .mx-range { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .mx-range-btn { font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-3); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; cursor: pointer; }
+  .mx-range-btn:hover { border-color: var(--ink-3); }
+  .mx-range-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .mx-custom { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
+  .mx-date { font: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .mx-dash { color: var(--ink-4); }
   .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   .metric-card { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 22px 18px; }
-  .metric-h { font-size: 14px; font-weight: 700; color: var(--ink); margin: 0 0 18px; }
+  .metric-h { font-size: 14px; font-weight: 700; color: var(--ink); margin: 0 0 18px; display: flex; align-items: center; gap: 6px; }
   .chart { width: 100%; }
   .chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 168px; }
   .chart-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; min-width: 0; }
@@ -2645,8 +2682,8 @@
       </div>
     </div>
     <div class="dash-main">
-      <h1 class="dash-h">Sales presentations</h1>
-      <p class="dash-sub">Create a branded deck for a school, then present it or download it as a PDF. Every deck you create is saved here.</p>
+      <h1 class="dash-h">Leads</h1>
+      <p class="dash-sub">Every school you’re working. Open a lead to see its timeline, build the presentation, and move the deal forward.</p>
       <div class="dash-controls" id="dash-controls">
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -2686,8 +2723,10 @@
     </div>
     <div class="settings-main">
       <h1 class="settings-title">Settings</h1>
-      <div class="settings-tabs" id="settings-tabs"></div>
-      <div id="settings-body"></div>
+      <div class="settings-layout">
+        <div class="settings-tabs" id="settings-tabs"></div>
+        <div class="settings-body-wrap" id="settings-body"></div>
+      </div>
     </div>
   </div>
 
@@ -3098,6 +3137,56 @@ function saveSequences(list){
   if (cloudOn()) sbUpsert('settings', 'sequences', sequencesConfig()).catch(e => console.warn('sequences sync failed', e));
 }
 function getSequence(id){ return SEQUENCES.find(s => s.id === id) || null; }
+
+/* ---- Lead sources (Settings → Lead sources) — editable sources with optional sub-sources ---- */
+const SOURCES_KEY = 'gl_sources_v1';
+const DEFAULT_SOURCES = [
+  { name:'Cold outreach', subs:[] },
+  { name:'Inbound / website', subs:[] },
+  { name:'Referral', subs:[] },
+  { name:'Conference', subs:['Texas AD Conference'] },
+  { name:'Event', subs:[] },
+  { name:'Partner', subs:[] },
+  { name:'Other', subs:[] }
+];
+let SOURCES = JSON.parse(JSON.stringify(DEFAULT_SOURCES));
+function sourcesConfig(){ return { type:'sources', list: SOURCES }; }
+function applySources(cfg){
+  if (cfg && Array.isArray(cfg.list)) {
+    SOURCES = cfg.list.map(s => ({ name: String(s.name||'').trim() || 'Source', subs: (Array.isArray(s.subs)?s.subs:[]).map(x=>String(x||'').trim()).filter(Boolean) })).filter(s => s.name);
+  }
+}
+function saveSources(list){
+  applySources({ list: list });
+  saveJSON(SOURCES_KEY, sourcesConfig());
+  if (cloudOn()) sbUpsert('settings', 'sources', sourcesConfig()).catch(e => console.warn('sources sync failed', e));
+}
+function sourceNames(){ return SOURCES.map(s => s.name); }
+function subsFor(name){ const s = SOURCES.find(x => x.name === name); return s ? s.subs : []; }
+function sourceLabel(deck){ const src = deck.leadSource || ''; return src + (deck.leadSubSource ? ' — ' + deck.leadSubSource : ''); }
+// A source <select> + conditional sub-source <select>, wired so the sub options swap when the source changes.
+function sourceFields(currentSource, currentSub){
+  const sourceSel = el('select',{}, ...sourceNames().map(n => el('option',{value:n}, n)));
+  if (currentSource && !sourceNames().includes(currentSource)) sourceSel.appendChild(el('option',{value:currentSource}, currentSource));
+  sourceSel.value = currentSource || sourceNames()[0] || '';
+  const subWrap = el('div',{class:'field', style:'flex:1'});
+  const subSel = el('select',{});
+  const drawSub = () => {
+    const subs = subsFor(sourceSel.value);
+    subSel.innerHTML = '';
+    if (!subs.length){ subWrap.style.display = 'none'; return; }
+    subWrap.style.display = '';
+    subSel.appendChild(el('option',{value:''}, '— select —'));
+    subs.forEach(s => subSel.appendChild(el('option',{value:s}, s)));
+    if (currentSub && !subs.includes(currentSub)) subSel.appendChild(el('option',{value:currentSub}, currentSub));
+    subSel.value = (currentSub && (subs.includes(currentSub) || true)) ? currentSub : '';
+  };
+  subWrap.appendChild(el('label',{}, 'Sub-source'));
+  subWrap.appendChild(subSel);
+  drawSub();
+  sourceSel.addEventListener('change', ()=>{ currentSub=''; drawSub(); });
+  return { sourceSel, subWrap, subSel };
+}
 function seqToday(){ return new Date().toISOString().slice(0,10); }
 function seqDateAdd(days){ return new Date(Date.now() + (Number(days)||0)*86400000).toISOString().slice(0,10); }
 function seqPersonalize(text, deck){
@@ -3163,6 +3252,7 @@ function fmtMultiple(m) {
 const state = {
   view: 'dashboard', // 'dashboard' | 'deck'
   queueScope: 'me',  // whose work queue to show on Today + Nudges&Tasks: 'me' | 'all' | <salespersonId>
+  metricsRange: '6m', metricsFrom: '', metricsTo: '',   // dashboard date window
   deckId: null,      // id of the deck currently being presented
   slide: 0,          // 0-indexed slide index in deck
   lossPct: 10,       // Single source of truth — % of gear lost per year. Set on discovery slide 4, adjustable again on report slide 7.
@@ -3261,6 +3351,7 @@ applyRubric(loadJSON(RUBRIC_KEY, null));     // restore saved grading rubric
 applyAutomation(loadJSON(AUTOMATION_KEY, null));   // restore automation toggles
 applyPlaybooks(loadJSON(PLAYBOOKS_KEY, null));      // restore stage playbooks (cloud copy loads in refreshFromCloud)
 applySequences(loadJSON(SEQUENCES_KEY, null));      // restore email sequences (cloud copy loads in refreshFromCloud)
+applySources(loadJSON(SOURCES_KEY, null));          // restore lead sources (cloud copy loads in refreshFromCloud)
 function getDecks(){ return DB.decks; }
 function getTeam(){ return DB.team; }
 function persistDecks(){ saveJSON(DECKS_KEY, DB.decks); }
@@ -3317,6 +3408,8 @@ async function refreshFromCloud(){
   if (playbooks){ applyPlaybooks(playbooks); saveJSON(PLAYBOOKS_KEY, playbooksConfig()); }
   const sequences = (settings || []).find(s => s && s.type === 'sequences');
   if (sequences){ applySequences(sequences); saveJSON(SEQUENCES_KEY, sequencesConfig()); }
+  const sources = (settings || []).find(s => s && s.type === 'sources');
+  if (sources){ applySources(sources); saveJSON(SOURCES_KEY, sourcesConfig()); }
 }
 const uid = (p) => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
 const initials = (name) => ((name||'').trim().split(/\s+/).map(w=>w[0]||'').slice(0,2).join('').toUpperCase()) || '–';
@@ -3378,7 +3471,6 @@ function applyStageAutomation(deck, newStage){
   return { tasks, autoFired: fired, history, count: added.length };
 }
 const STAGE_MAP_OLD = { active:'newlead', won:'closedwon', lost:'closedlost', hold:'newlead' };  // migrate the old 4-stage values
-const LEAD_SOURCES = ['Cold outreach','Inbound / website','Referral','Event / conference','Partner','Other'];
 function dealStage(deck){
   const s = deck && deck.stage;
   if (!s) return 'newlead';
@@ -3425,6 +3517,23 @@ function followupChip(deck){
   return null;
 }
 
+// Inline rep assignment on the leads list — change/save the owner without leaving the list.
+function repAssignSelect(deck, team){
+  const sel = el('select',{class:'row-rep' + (deck.salespersonId?'':' unassigned'), title:'Assign rep'});
+  sel.appendChild(el('option',{value:''}, 'Unassigned'));
+  team.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).forEach(p => sel.appendChild(el('option',{value:p.id}, p.name||p.email||'Rep')));
+  sel.value = deck.salespersonId || '';
+  sel.addEventListener('click', e=>e.stopPropagation());
+  sel.addEventListener('change', ()=>{
+    const cur = DB.decks.find(x=>x.id===deck.id)||deck;
+    const prevName = (team.find(p=>p.id===cur.salespersonId)||{}).name || 'Unassigned';
+    const newName = (team.find(p=>p.id===sel.value)||{}).name || 'Unassigned';
+    saveDeckPatch(deck, { salespersonId: sel.value, history: pushHist(cur.history, 'owner', 'Owner ' + prevName + ' → ' + newName) });
+    sel.classList.toggle('unassigned', !sel.value);
+    if (typeof showToast==='function') showToast('Assigned ' + deck.school + ' → ' + newName);
+  });
+  return sel;
+}
 function deckRow(deck, team){
   const sp = team.find(p=>p.id===deck.salespersonId);
   const contact = [deck.contactFirst, deck.contactLast].filter(Boolean).join(' ');
@@ -3442,10 +3551,11 @@ function deckRow(deck, team){
       stageChip(deck),
       deck.callGrade ? el('span',{class:'grade-chip', style:'background:' + gradeColor(deck.callGrade.overall), title:'Call grade ' + deck.callGrade.overall + '/100'}, deck.callGrade.grade) : null,
       followupChip(deck),
-      (!deck.emailedAt && !deck.callGrade && !deck.followup && isOpenDeal(deck)) ? el('span',{class:'muted'},'—') : null),
+      deck.paidAt ? el('span',{class:'paid-badge', title:'Paid ' + fmtDate(deck.paidAt)}, 'Paid') : null,
+      (!deck.emailedAt && !deck.callGrade && !deck.followup && !deck.paidAt && isOpenDeal(deck)) ? el('span',{class:'muted'},'—') : null),
     el('div',{class:'deck-cell num'}, fmtDate(deck.createdAt)),
     el('div',{class:'deck-cell num'}, deck.enrollment ? fmtNum(deck.enrollment) : el('span',{class:'muted'},'—')),
-    el('div',{class:'deck-cell'}, sp ? sp.name : el('span',{class:'muted'},'Unassigned')),
+    el('div',{class:'deck-cell'}, repAssignSelect(deck, team)),
     el('div',{class:'deck-row-actions'},
       el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
@@ -3606,7 +3716,7 @@ function createDeck(o){
   const now = new Date().toISOString();
   const deck = { id: uid('d_'), school: o.school, salespersonId: o.salespersonId,
     contactFirst: o.contactFirst || '', contactLast: o.contactLast || '', contactEmail: o.contactEmail || '',
-    stage: 'newlead', leadSource: 'Cold outreach', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
+    stage: 'newlead', leadSource: (sourceNames()[0] || 'Cold outreach'), leadSubSource:'', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
   closeModal();
   openDeck(deck.id);
@@ -3623,7 +3733,7 @@ function openEditModal(deck){
   const repSelect = el('select',{}, ...team.map(p=>el('option',{value:p.id}, p.name)));
   const stageSelect = el('select',{}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
   const amountInput = el('input',{type:'number', min:'0', step:'100', value: (deck.amount != null && deck.amount !== '') ? deck.amount : '', placeholder: String(dealAmount(deck))});
-  const sourceSelect = el('select',{}, ...LEAD_SOURCES.map(s=>el('option',{value:s}, s)));
+  const srcF = sourceFields(deck.leadSource, deck.leadSubSource);
   const save = () => {
     const school = schoolInput.value.trim();
     if (school.length < 2){ schoolInput.focus(); return; }
@@ -3640,7 +3750,8 @@ function openEditModal(deck){
     }
     upsertDeck(Object.assign({}, deck, { school: school, salespersonId: repSelect.value, stage: newStage, stageDates: sd,
       contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim(), contactEmail: emailInput.value.trim(),
-      contactPhone: phoneInput.value.trim(), amount: amountInput.value.trim(), leadSource: sourceSelect.value,
+      contactPhone: phoneInput.value.trim(), amount: amountInput.value.trim(),
+      leadSource: srcF.sourceSel.value, leadSubSource: (subsFor(srcF.sourceSel.value).length ? srcF.subSel.value : ''),
       tasks: autoTasks || deck.tasks, autoFired: autoFired, history: hist, updatedAt: new Date().toISOString() }));
     closeModal();
     renderDashboard();
@@ -3661,7 +3772,8 @@ function openEditModal(deck){
       el('div',{class:'field', style:'flex:1'}, el('label',{},'Stage'), stageSelect)),
     el('div',{class:'field-row'},
       el('div',{class:'field', style:'flex:1'}, el('label',{},'Forecast amount ($/yr)'), amountInput),
-      el('div',{class:'field', style:'flex:1'}, el('label',{},'Lead source'), sourceSelect)),
+      el('div',{class:'field', style:'flex:1'}, el('label',{},'Lead source'), srcF.sourceSel)),
+    el('div',{class:'field-row'}, srcF.subWrap),
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
       team.length ? el('button',{class:'btn primary', onClick:save}, 'Save changes') : null
@@ -3670,7 +3782,6 @@ function openEditModal(deck){
   openModal(body);
   if (team.length) repSelect.value = deck.salespersonId;   // preselect current rep
   stageSelect.value = dealStage(deck);
-  sourceSelect.value = deck.leadSource || LEAD_SOURCES[0];
   setTimeout(()=>schoolInput.focus(),50);
 }
 
@@ -3818,7 +3929,7 @@ function renderSettingsTabs(){
   const tabs = document.getElementById('settings-tabs');
   if (!tabs) return;
   tabs.innerHTML = '';
-  [['pricing','Pricing'],['rubric','Call rubric'],['team','Team'],['automation','Automation'],['playbooks','Playbooks'],['sequences','Sequences'],['google','Google sync']].forEach(([key,label]) => {
+  [['pricing','Pricing'],['sources','Lead sources'],['team','Team'],['rubric','Call rubric'],['automation','Automation'],['playbooks','Playbooks'],['sequences','Sequences'],['google','Google sync']].forEach(([key,label]) => {
     tabs.appendChild(el('button',{ class:'settings-tab' + (settingsTab===key?' active':''), type:'button', onClick:()=>{ settingsTab = key; renderSettingsPage(); window.scrollTo(0,0); } }, label));
   });
 }
@@ -3831,6 +3942,7 @@ function renderSettingsPage(){
   else if (settingsTab === 'automation') body.appendChild(renderAutomationSettings());
   else if (settingsTab === 'playbooks') body.appendChild(renderPlaybookSettings());
   else if (settingsTab === 'sequences') body.appendChild(renderSequenceSettings());
+  else if (settingsTab === 'sources') body.appendChild(renderSourceSettings());
   else if (settingsTab === 'google') body.appendChild(renderGoogleSettings());
   else {
     body.appendChild(el('p',{class:'settings-subtitle'}, 'Update pricing here and it flows into every deck’s pricing slide and proposal. Saved for the whole team.'));
@@ -4046,6 +4158,49 @@ function renderSequenceSettings(){
   return wrap;
 }
 
+function renderSourceSettings(){
+  const draft = JSON.parse(JSON.stringify(SOURCES));
+  const wrap = el('div',{});
+  wrap.appendChild(el('p',{class:'settings-subtitle'}, 'These are the lead-source options reps pick from when creating or editing a lead. Give a source one or more sub-sources (e.g. “Conference” → “Texas AD Conference”) and a second dropdown appears so you can tag exactly where the lead came from. Saved for the whole team.'));
+  const status = el('span',{class:'settings-saved'}, '');
+  const bodyEl = el('div',{class:'src-editor'});
+  const draw = () => {
+    bodyEl.innerHTML = '';
+    if (!draft.length) bodyEl.appendChild(el('div',{class:'pb-empty'}, 'No sources yet. Add one below.'));
+    draft.forEach((src, si) => {
+      const nameI = el('input',{type:'text', class:'src-name-input', placeholder:'Source name', value: src.name || ''});
+      nameI.addEventListener('input', ()=>{ draft[si].name = nameI.value; });
+      const subWrap = el('div',{class:'src-subs'});
+      (src.subs||[]).forEach((sub, xi) => {
+        const subI = el('input',{type:'text', class:'src-sub-input', placeholder:'Sub-source…', value: sub || ''});
+        subI.addEventListener('input', ()=>{ draft[si].subs[xi] = subI.value; });
+        subWrap.appendChild(el('div',{class:'src-sub-row'}, subI,
+          el('button',{class:'pb-x', type:'button', title:'Remove sub-source', onClick:()=>{ draft[si].subs.splice(xi,1); draw(); }}, '✕')));
+      });
+      bodyEl.appendChild(el('div',{class:'pb-card src-card'},
+        el('div',{class:'src-head'}, nameI,
+          el('button',{class:'pb-x', type:'button', title:'Delete source', onClick:()=>{ draft.splice(si,1); draw(); }}, '✕')),
+        (src.subs && src.subs.length) ? el('div',{class:'src-subs-label'}, 'Sub-sources') : null,
+        subWrap,
+        el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ (draft[si].subs=draft[si].subs||[]).push(''); draw(); }}, '+ Add sub-source')));
+    });
+  };
+  draw();
+  wrap.appendChild(bodyEl);
+  wrap.appendChild(el('button',{class:'btn ghost sm', type:'button', style:'margin-top:8px', onClick:()=>{ draft.push({ name:'New source', subs:[] }); draw(); }}, '+ Add source'));
+  const save = () => {
+    const clean = draft.map(s => ({ name:String(s.name||'').trim(), subs:(s.subs||[]).map(x=>String(x||'').trim()).filter(Boolean) })).filter(s => s.name);
+    saveSources(clean);
+    status.textContent = 'Saved ✓'; setTimeout(()=>status.textContent='', 2500);
+    renderSettingsPage();
+  };
+  const reset = () => { if (confirm('Reset lead sources to defaults?')){ saveSources(JSON.parse(JSON.stringify(DEFAULT_SOURCES))); renderSettingsPage(); } };
+  wrap.appendChild(el('div',{class:'settings-actions'},
+    el('button',{class:'btn ghost sm', type:'button', onClick:reset}, 'Reset to defaults'),
+    el('div',{style:'display:flex;align-items:center;gap:16px'}, status, el('button',{class:'btn primary', type:'button', onClick:save}, 'Save'))));
+  return wrap;
+}
+
 /* ---------- Team performance / leaderboard ---------- */
 function letterGrade(n){ if(n==null)return'—'; if(n>=93)return'A';if(n>=90)return'A-';if(n>=87)return'B+';if(n>=83)return'B';if(n>=80)return'B-';if(n>=77)return'C+';if(n>=73)return'C';if(n>=70)return'C-';if(n>=67)return'D+';if(n>=60)return'D';return'F'; }
 function repStats(decks){
@@ -4253,7 +4408,7 @@ function pushHist(arr, type, detail){ const h = (Array.isArray(arr) ? arr : []).
 function infoRow(k, v){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, k), el('span',{class:'lead-info-v'}, v)); }
 function leadTimeline(deck, meetings, emails){
   const ev = [];
-  if (deck.createdAt) ev.push({ date:deck.createdAt, icon:TL_ICON.plus, title:'Lead created', sub: deck.leadSource || '' });
+  if (deck.createdAt) ev.push({ date:deck.createdAt, icon:TL_ICON.plus, title:'Lead created', sub: sourceLabel(deck) });
   const g = deck.callGrade;
   if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Demo call', sub: ['Call — view what was discussed', (g.grade ? 'graded ' + g.grade : '')].filter(Boolean).join('  ·  '), onClick:()=>openAnalysisDrawer(deck) });
   if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'' });
@@ -4441,6 +4596,7 @@ function maybeAutoSync(){
   if (!stale || GACTIVITY.syncing) return;
   syncGoogleActivity().then(r => {
     if (!r || !r.ok) return;
+    prewarmBriefing();   // build today's briefing in the background now that the inbox is synced
     if (state.view==='lead'){ const d=getDecks().find(x=>x.id===state.leadId); if (d) renderLead(d); }
     else if (state.section && SECTION_PAGE[state.section]) showSection(state.section);   // refresh nudges/leads with synced touches
   }).catch(()=>{});
@@ -4623,10 +4779,11 @@ function renderLeadOverview(deck, content, sp, contact){
       el('div',{class:'lead-card-h'},'Deal'),
       infoRow('Owner', sp ? sp.name : 'Unassigned'),
       el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'},'Forecast'), el('div',{class:'lead-amt-wrap'}, el('span',{class:'lead-amt-$'},'$'), amtInput, el('span',{class:'lead-amt-yr'},'/yr'))),
-      infoRow('Source', deck.leadSource || '—'),
+      infoRow('Source', sourceLabel(deck) || '—'),
       infoRow('Stage', stageMeta(dealStage(deck)).label),
       infoRow('Created', deck.createdAt ? fmtDay(deck.createdAt) : '—')
     ),
+    leadMilestonesCard(deck),
     el('div',{class:'lead-card'},
       el('div',{class:'lead-card-h'},'Contact'),
       infoRow('Name', contact || '—'),
@@ -4648,6 +4805,43 @@ function renderLeadOverview(deck, content, sp, contact){
   content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, ovCard, nxCard, actCard)));
 }
 // Sequence enrollment card for a lead (enroll / status / controls).
+// Editable deal milestones + paid status — the source of truth for the dashboard's dated metrics.
+function leadMilestonesCard(deck){
+  const card = el('div',{class:'lead-card ms-card'}, el('div',{class:'lead-card-h'},'Milestones & dates'));
+  const dToInput = v => v ? String(v).slice(0,10) : '';
+  const dToISO = v => v ? new Date(v + 'T12:00:00').toISOString() : '';   // noon avoids timezone off-by-one
+  const setStageDate = (key, label, val) => {
+    const cur = DB.decks.find(x=>x.id===deck.id) || deck;
+    const sd = Object.assign({}, cur.stageDates||{});
+    if (val) sd[key] = dToISO(val); else delete sd[key];
+    saveDeckPatch(deck, { stageDates: sd, history: pushHist(cur.history, 'date', label + (val ? ' set to ' + fmtDay(sd[key]) : ' cleared')) });
+  };
+  const dateRow = (label, value, onSave, hint) => {
+    const inp = el('input',{type:'date', class:'ms-date', value: dToInput(value)});
+    inp.addEventListener('change', ()=> onSave(inp.value));
+    return el('div',{class:'lead-info-row ms-row'}, el('span',{class:'lead-info-k'}, label, hint?el('span',{class:'ms-hint', title:hint},' ⓘ'):null), inp);
+  };
+  card.appendChild(dateRow('New lead', deck.createdAt, v => { saveDeckPatch(deck, { createdAt: dToISO(v) || deck.createdAt }); }, 'When this lead entered the pipeline.'));
+  card.appendChild(dateRow('Demo done', deck.stageDates && deck.stageDates.democompleted, v => setStageDate('democompleted','Demo date', v), 'Date the demo/discovery call happened. Counts the deal as a demo in the dashboard.'));
+  card.appendChild(dateRow('Verbal commit', deck.stageDates && deck.stageDates.verbalcommit, v => setStageDate('verbalcommit','Verbal-commit date', v), 'Date they verbally committed to move forward.'));
+  card.appendChild(dateRow('Closed won', deck.stageDates && deck.stageDates.closedwon, v => setStageDate('closedwon','Close date', v), 'Date the deal was won. Counts as a sale in the dashboard.'));
+  // Paid status
+  const cur0 = DB.decks.find(x=>x.id===deck.id) || deck;
+  const paidCb = el('input',{type:'checkbox'}); paidCb.checked = !!cur0.paidAt;
+  const paidDate = el('input',{type:'date', class:'ms-date', value: dToInput(cur0.paidAt)}); paidDate.disabled = !cur0.paidAt;
+  paidCb.addEventListener('change', ()=>{
+    if (paidCb.checked){ const d = paidDate.value || new Date().toISOString().slice(0,10); saveDeckPatch(deck, { paidAt: dToISO(d), history: pushHist((DB.decks.find(x=>x.id===deck.id)||deck).history,'date','Marked paid ' + fmtDay(dToISO(d))) }); }
+    else saveDeckPatch(deck, { paidAt: '' });
+    renderLead(DB.decks.find(x=>x.id===deck.id)||deck);
+  });
+  paidDate.addEventListener('change', ()=>{ if (paidDate.value) saveDeckPatch(deck, { paidAt: dToISO(paidDate.value) }); });
+  card.appendChild(el('div',{class:'lead-info-row ms-row ms-paid'},
+    el('span',{class:'lead-info-k'}, 'Paid'),
+    el('div',{class:'ms-paid-wrap'},
+      el('label',{class:'ms-paid-toggle'}, paidCb, el('span',{class: cur0.paidAt?'ms-paid-yes':'muted'}, cur0.paidAt ? 'Paid' : 'Not paid')),
+      paidDate)));
+  return card;
+}
 function leadSequenceCard(deck){
   const card = el('div',{class:'lead-card seq-card'}, el('div',{class:'lead-card-h'},'Sequence'));
   const st = seqState(deck);
@@ -4860,6 +5054,25 @@ async function generateBriefing(cands){
   return data;
 }
 let briefingBusy = false;
+// "Last good" briefing pointer (date-independent) so we can show something instantly while today's builds.
+function briefingLastKey(){ return 'gl_briefing_last_' + String((AUTH&&AUTH.email)||'').toLowerCase() + '_' + (state.queueScope||'me'); }
+function saveBriefingCache(data){
+  const payload = JSON.stringify(Object.assign({}, data, { at:new Date().toISOString() }));
+  try { localStorage.setItem(briefingKey(), payload); localStorage.setItem(briefingLastKey(), payload); } catch(e){}
+}
+// Build today's briefing in the BACKGROUND (after Gmail sync) so Today is ready before the rep opens it — no on-open wait.
+function prewarmBriefing(){
+  if (!SUPABASE_URL || briefingBusy) return;
+  let cached = null; try { cached = JSON.parse(localStorage.getItem(briefingKey()) || 'null'); } catch(e){}
+  if (cached) return;                                  // today's already built
+  const cands = briefingCandidates();
+  if (!cands.length) return;
+  briefingBusy = true;
+  generateBriefing(cands).then(data => {
+    briefingBusy = false; saveBriefingCache(data);
+    if (state.view === 'today') renderToday();         // if they're already on Today, paint it the moment it's ready
+  }).catch(()=>{ briefingBusy = false; });
+}
 function renderToday(force){
   const body = document.getElementById('today-body'); if (!body) return; body.innerHTML = '';
   const first = AUTH && AUTH.name ? String(AUTH.name).trim().split(/\s+/)[0] : '';
@@ -4929,15 +5142,20 @@ function renderToday(force){
   try { cached = JSON.parse(localStorage.getItem(briefingKey()) || 'null'); } catch(e){}
   if (cached && !force){ draw(cached); return; }
   if (!SUPABASE_URL){ sumEl.appendChild(el('div',{class:'today-empty'}, 'Cloud isn’t configured.')); return; }
-  sumEl.appendChild(aiLoading('Reading your book and ranking the day…'));
+  // Show the most recent prior briefing instantly (no blank wait) and refresh in the background.
+  let prior = null; try { prior = JSON.parse(localStorage.getItem(briefingLastKey()) || 'null'); } catch(e){}
+  const havePrior = prior && Array.isArray(prior.priorities);
+  if (havePrior && !force){ draw(prior); sumEl.insertBefore(el('div',{class:'today-refreshing'}, el('span',{class:'lead-ai-spin'}), el('span',{}, 'Refreshing today’s briefing…')), sumEl.firstChild); }
+  // If Gmail is mid-sync, wait — the post-sync prewarm builds on complete data (avoids a stale double-run).
+  if (GACTIVITY.syncing && !force){ if (!havePrior) sumEl.appendChild(aiLoading('Syncing your inbox, then building today’s briefing…')); return; }
+  if (!havePrior) sumEl.appendChild(aiLoading('Reading your book and ranking the day…'));
   if (briefingBusy) return; briefingBusy = true;
   generateBriefing(cands).then(data => {
-    briefingBusy = false;
-    try { localStorage.setItem(briefingKey(), JSON.stringify(Object.assign({}, data, { at:new Date().toISOString() }))); } catch(e){}
+    briefingBusy = false; saveBriefingCache(data);
     if (state.view === 'today') draw(data);
   }).catch(e => {
     briefingBusy = false;
-    if (state.view === 'today'){ sumEl.innerHTML = ''; sumEl.appendChild(el('div',{class:'today-empty'}, 'Couldn’t build the briefing — ' + (e && e.message ? e.message : e))); }
+    if (state.view === 'today' && !havePrior){ sumEl.innerHTML = ''; sumEl.appendChild(el('div',{class:'today-empty'}, 'Couldn’t build the briefing — ' + (e && e.message ? e.message : e))); }
   });
 }
 // The single best one-click action button for a priority (reused on the card and in the drawer).
@@ -5263,8 +5481,9 @@ function buildNav(active){
     chip.onclick = () => { if (confirm('Sign out of GearLocker?')) signOut(); };
   } else chip.style.display='none';
   const decks = getDecks().filter(inMyQueue);   // badge reflects the in-scope rep's own queue
+  const todayS = new Date().toISOString().slice(0,10);
   const nudgeN = decks.filter(dealNeedsNudge).length;
-  const taskN = decks.reduce((a,d)=> a + deckTasks(d).filter(t=>!t.done).length, 0);
+  const taskN = decks.reduce((a,d)=> a + deckTasks(d).filter(t=>!t.done && (!t.due || String(t.due).slice(0,10) <= todayS)).length, 0);   // due only
   const tasksCount = nudgeN + taskN + repliesToSend().length;
   return el('div',{class:'topnav'},
     el('div',{class:'topnav-left'},
@@ -5312,8 +5531,9 @@ function renderTasksSection(){
   const team = getTeam();
   const decks = getDecks().filter(inMyQueue);   // only the in-scope rep's book (default: signed-in rep)
   const repName = id => (team.find(p=>p.id===id)||{}).name || 'Unassigned';
-  const openTasks = [];
-  decks.forEach(d => deckTasks(d).filter(t=>!t.done).forEach(t => openTasks.push({ deck:d, task:t })));
+  const todayStr = new Date().toISOString().slice(0,10);
+  const openTasks = [];   // only tasks actually due — overdue, due today, or no date set (hide future-dated)
+  decks.forEach(d => deckTasks(d).filter(t=>!t.done && (!t.due || String(t.due).slice(0,10) <= todayStr)).forEach(t => openTasks.push({ deck:d, task:t })));
   openTasks.sort((a,b)=> String(a.task.due||'9999-99').localeCompare(String(b.task.due||'9999-99')));
   const nudges = decks.filter(dealNeedsNudge).sort((a,b)=> (daysQuiet(b)||0) - (daysQuiet(a)||0));
   body.appendChild(el('div',{class:'nt-head'}, el('h1',{class:'lb-title'},'Nudges & Tasks'), queueScopeSelect()));
@@ -5324,7 +5544,7 @@ function renderTasksSection(){
       el('button',{class:'btn sm primary', type:'button', onClick:()=>openSettingsPage('google')}, 'Connect Gmail')));
   }
   const replies = repliesToSend();
-  body.appendChild(el('p',{class:'lb-sub'}, (replies.length ? (replies.length + ' repl' + (replies.length===1?'y':'ies') + ' to send  ·  ') : '') + openTasks.length + ' open task' + (openTasks.length===1?'':'s') + '  ·  ' + nudges.length + ' deal' + (nudges.length===1?'':'s') + ' needing a nudge. Work the list and clear it out.'));
+  body.appendChild(el('p',{class:'lb-sub'}, (replies.length ? (replies.length + ' repl' + (replies.length===1?'y':'ies') + ' to send  ·  ') : '') + openTasks.length + ' task' + (openTasks.length===1?'':'s') + ' due  ·  ' + nudges.length + ' deal' + (nudges.length===1?'':'s') + ' needing a nudge. Work the list and clear it out.'));
 
   if (replies.length){
     body.appendChild(el('div',{class:'nt-sec'}, '✉ Replies to send (' + replies.length + ') — prospects waiting on you'));
@@ -5363,9 +5583,9 @@ function renderTasksSection(){
     body.appendChild(sl);
   }
 
-  body.appendChild(el('div',{class:'nt-sec'}, 'Open tasks (' + openTasks.length + ')'));
+  body.appendChild(el('div',{class:'nt-sec'}, 'Tasks due (' + openTasks.length + ')'));
   const tl = el('div',{class:'nt-list'});
-  if (!openTasks.length) tl.appendChild(el('div',{class:'lead-empty', style:'padding:14px 16px'},'No open tasks. 🎉'));
+  if (!openTasks.length) tl.appendChild(el('div',{class:'lead-empty', style:'padding:14px 16px'},'Nothing due right now. 🎉'));
   openTasks.forEach(({deck, task}) => {
     const cb = el('input',{type:'checkbox'}); cb.addEventListener('change', ()=>{ toggleTask(deck, task.id); renderTasksSection(); });
     const overdue = task.due && parseDay(task.due).getTime() < parseDay(new Date().toISOString()).getTime();
@@ -5416,35 +5636,85 @@ function stackedChart(months, series, fmt){
   ))));
 }
 function chartLegend(series){ const a=series.filter(s=>s.data.some(v=>v)); return a.length ? el('div',{class:'chart-legend'}, ...a.map(s=>el('span',{class:'chart-leg'}, el('span',{class:'chart-dot', style:'background:'+s.color}), s.label))) : null; }
-function chartCard(title, months, series, fmt){
+function chartCard(title, months, series, fmt, tip){
   const has=series.some(s=>s.data.some(v=>v));
   return el('div',{class:'metric-card'},
-    el('div',{class:'metric-h'}, title),
+    el('div',{class:'metric-h'}, title, tip?infoTip(tip):null),
     has ? stackedChart(months, series, fmt) : el('div',{class:'lead-empty', style:'padding:30px 4px'},'No data in this window yet.'),
     has ? chartLegend(series) : null
   );
 }
-function kpi(label, value){ return el('div',{class:'kpi'}, el('div',{class:'kpi-val'}, value), el('div',{class:'kpi-lbl'}, label)); }
+// small "ⓘ" affordance with a hover explanation (native title tooltip)
+const INFO_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+function infoTip(text){ return el('span',{class:'info-tip', title:text, html:INFO_SVG}); }
+function kpi(label, value, tip){ return el('div',{class:'kpi'}, el('div',{class:'kpi-val'}, value), el('div',{class:'kpi-lbl'}, label, tip?infoTip(tip):null)); }
+function lostDate(d){ if (d.stageDates && d.stageDates.closedlost) return d.stageDates.closedlost; return dealStage(d)==='closedlost' ? (d.updatedAt||d.createdAt) : null; }
+function monthsBetween(fromStr, toStr){
+  const out=[]; const f=new Date(fromStr+'T00:00:00'), t=new Date(toStr+'T00:00:00');
+  let y=f.getFullYear(), m=f.getMonth();
+  while (y<t.getFullYear() || (y===t.getFullYear() && m<=t.getMonth())){
+    out.push({ key:y+'-'+String(m+1).padStart(2,'0'), label:new Date(y,m,1).toLocaleDateString(undefined,{month:'short'}) });
+    m++; if(m>11){m=0;y++;} if(out.length>36) break;
+  }
+  return out.length?out:lastMonths(6);
+}
+function metricsMonths(){
+  const r = state.metricsRange || '6m';
+  if (r==='3m') return lastMonths(3);
+  if (r==='12m') return lastMonths(12);
+  if (r==='ytd'){ return lastMonths(new Date().getMonth()+1); }
+  if (r==='all'){ const ks=getDecks().map(d=>monthKey(d.createdAt)).filter(Boolean).sort(); if(!ks.length) return lastMonths(6); const now=new Date(); const fy=+ks[0].slice(0,4), fm=+ks[0].slice(5,7); const n=(now.getFullYear()-fy)*12+(now.getMonth()+1-fm)+1; return lastMonths(Math.max(1,Math.min(n,36))); }
+  if (r==='custom' && state.metricsFrom && state.metricsTo) return monthsBetween(state.metricsFrom, state.metricsTo);
+  return lastMonths(6);
+}
+function metricsRangeBar(){
+  const presets=[['3m','3M'],['6m','6M'],['12m','12M'],['ytd','YTD'],['all','All'],['custom','Custom']];
+  const bar=el('div',{class:'mx-range'});
+  presets.forEach(([k,lab])=> bar.appendChild(el('button',{class:'mx-range-btn'+(state.metricsRange===k?' active':''), type:'button', onClick:()=>{ state.metricsRange=k; renderMetrics(); }}, lab)));
+  if (state.metricsRange==='custom'){
+    const from=el('input',{type:'date', class:'mx-date', value:state.metricsFrom||''});
+    const to=el('input',{type:'date', class:'mx-date', value:state.metricsTo||''});
+    from.addEventListener('change',()=>{ state.metricsFrom=from.value; if(state.metricsTo) renderMetrics(); });
+    to.addEventListener('change',()=>{ state.metricsTo=to.value; if(state.metricsFrom) renderMetrics(); });
+    bar.appendChild(el('span',{class:'mx-custom'}, from, el('span',{class:'mx-dash'},'→'), to));
+  }
+  return bar;
+}
 function renderMetrics(){
   const body=document.getElementById('metrics-body'); body.innerHTML='';
   const decks=getDecks(), team=getTeam();
   const repName=id=>(team.find(p=>p.id===id)||{}).name||'Unassigned';
-  body.appendChild(el('h1',{class:'lb-title'},'Dashboard'));
-  body.appendChild(el('p',{class:'lb-sub'},'Last 6 months. Leads by source; demos, verbal commits and sales by rep. Demos = graded calls; commits/sales are dated when the stage was reached.'));
-  const won=decks.filter(d=>dealStage(d)==='closedwon'), lost=decks.filter(d=>dealStage(d)==='closedlost');
-  const wonAmt=won.reduce((a,d)=>a+dealAmount(d),0), openAmt=decks.filter(isOpenDeal).reduce((a,d)=>a+dealAmount(d),0);
-  const demos=decks.filter(demoDate), commits=decks.filter(committedDate);
+  const months=metricsMonths();
+  const mset=new Set(months.map(m=>m.key));
+  const inR = dt => dt && mset.has(monthKey(dt));
+  const rangeLabel = months.length ? (months[0].label + ' – ' + months[months.length-1].label) : '';
+  body.appendChild(el('div',{class:'mx-head'},
+    el('div',{}, el('h1',{class:'lb-title'},'Dashboard'),
+      el('p',{class:'lb-sub'}, rangeLabel + ' · everything below is filtered to this window (open pipeline is a live snapshot).')),
+    metricsRangeBar()));
+  // KPIs filtered to the window by each metric's own date
+  const leads=decks.filter(d=>inR(d.createdAt));
+  const demos=decks.filter(d=>inR(demoDate(d)));
+  const commits=decks.filter(d=>inR(committedDate(d)));
+  const won=decks.filter(d=>inR(closedWonDate(d))), lost=decks.filter(d=>inR(lostDate(d)));
+  const paid=decks.filter(d=>inR(d.paidAt));
+  const wonAmt=won.reduce((a,d)=>a+dealAmount(d),0), paidAmt=paid.reduce((a,d)=>a+dealAmount(d),0);
+  const openAmt=decks.filter(isOpenDeal).reduce((a,d)=>a+dealAmount(d),0);
   const winRate=(won.length+lost.length)?Math.round(100*won.length/(won.length+lost.length)):null;
   body.appendChild(el('div',{class:'kpi-row'},
-    kpi('Leads', String(decks.length)), kpi('Demos', String(demos.length)), kpi('Verbal commits', String(commits.length)),
-    kpi('Closed won', won.length + (wonAmt?(' · '+fmtUSD(wonAmt)):'')), kpi('Win rate', winRate!=null?winRate+'%':'—'), kpi('Open pipeline', fmtUSD(openAmt))
+    kpi('Leads', String(leads.length), 'New leads created in this window (by the lead’s created date).'),
+    kpi('Demos', String(demos.length), 'Deals with a demo in this window — the manual “Demo done” date on the lead, or the graded call date if set.'),
+    kpi('Verbal commits', String(commits.length), 'Deals whose verbal-commit date falls in this window.'),
+    kpi('Closed won', won.length + (wonAmt?(' · '+fmtUSD(wonAmt)):''), 'Deals won in this window (by close date) and their total annual value.'),
+    kpi('Win rate', winRate!=null?winRate+'%':'—', 'Of deals closed in this window, the % won: won ÷ (won + lost).'),
+    kpi('Collected', paid.length + (paidAmt?(' · '+fmtUSD(paidAmt)):''), 'Deals marked Paid in this window and the total collected.'),
+    kpi('Open pipeline', fmtUSD(openAmt), 'Total annual value of all currently-open deals. A live snapshot — not limited to the date window.')
   ));
-  const months=lastMonths(6);
   body.appendChild(el('div',{class:'metric-grid'},
-    chartCard('Leads by month — by source', months, bucketSeries(decks, d=>d.createdAt, d=>d.leadSource||'Other', months)),
-    chartCard('Demos by month — by rep', months, bucketSeries(demos, demoDate, d=>repName(d.salespersonId), months)),
-    chartCard('Verbal commits by month — by rep', months, bucketSeries(decks, committedDate, d=>repName(d.salespersonId), months)),
-    chartCard('Sales by month — by rep ($)', months, bucketSeries(won, closedWonDate, d=>repName(d.salespersonId), months, d=>dealAmount(d)), fmtUSD)
+    chartCard('Leads by month — by source', months, bucketSeries(decks, d=>d.createdAt, d=>sourceLabel(d)||'Other', months), null, 'Counts each lead in the month it was created, split by lead source (and sub-source).'),
+    chartCard('Demos by month — by rep', months, bucketSeries(demos, demoDate, d=>repName(d.salespersonId), months), null, 'Counts each demo in the month it happened, split by rep.'),
+    chartCard('Verbal commits by month — by rep', months, bucketSeries(decks, committedDate, d=>repName(d.salespersonId), months), null, 'Counts each verbal commit in the month it was reached, split by rep.'),
+    chartCard('Sales by month — by rep ($)', months, bucketSeries(won, closedWonDate, d=>repName(d.salespersonId), months, d=>dealAmount(d)), fmtUSD, 'Sums won-deal annual value in the month each deal closed, split by rep.')
   ));
 }
 function setDeckStage(deckId, newStage){
