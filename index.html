@@ -1979,6 +1979,13 @@
   .lead-info-row:first-of-type { border-top: none; padding-top: 0; }
   .lead-info-k { color: var(--ink-4); font-weight: 600; flex-shrink: 0; }
   .lead-info-v { color: var(--ink); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lead-edit-input { font: inherit; font-size: 13.5px; color: var(--ink); background: var(--paper); border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; min-width: 0; max-width: 64%; text-align: right; transition: border-color .12s, background .12s; }
+  select.lead-edit-input { text-align: left; cursor: pointer; -webkit-appearance: none; appearance: none; padding-right: 26px; background: var(--paper) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 8px center; }
+  .lead-edit-input:hover { border-color: var(--border); }
+  .lead-edit-input:focus { outline: none; border-color: var(--accent); background: var(--paper); text-align: left; }
+  .lead-edit-input.unassigned { color: var(--accent); border-color: var(--accent); border-style: dashed; font-weight: 600; }
+  .lead-name-edit { display: flex; gap: 6px; max-width: 64%; }
+  .lead-name-edit .lead-edit-input { max-width: none; flex: 1 1 0; text-align: left; }
   .lead-link-a { color: var(--accent); text-decoration: none; }
   .lead-amt-wrap { display: inline-flex; align-items: center; gap: 2px; }
   .lead-amt-$ { color: var(--ink-3); font-size: 13px; }
@@ -2098,6 +2105,9 @@
   .tl-item { position: relative; padding: 0 0 22px 42px; }
   .tl-item::before { content: ''; position: absolute; left: 14px; top: 6px; width: 2px; height: 100%; background: var(--border); }
   .tl-item:last-child::before { display: none; }
+  .tl-del { position: absolute; top: 0; right: 0; background: none; border: none; color: var(--ink-4); font-size: 13px; line-height: 1; cursor: pointer; padding: 3px 6px; border-radius: 6px; opacity: 0; transition: opacity .12s; }
+  .tl-item:hover .tl-del { opacity: 1; }
+  .tl-del:hover { color: var(--accent); background: var(--wash); }
   .tl-node { position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; background: #fff; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
   .tl-node svg { width: 14px; height: 14px; }
   .tl-content { padding-top: 5px; min-width: 0; }
@@ -4545,26 +4555,37 @@ function deckActivities(deck){ return Array.isArray(deck.activities) ? deck.acti
 function addActivity(deck, type, text){ const activities = deckActivities(deck).slice(); activities.push({ id:uid('a_'), type:type, date:new Date().toISOString(), text:text, by:(AUTH&&AUTH.name)||'' }); return saveDeckPatch(deck, { activities }); }
 function addNote(deck, text){ return addActivity(deck, 'note', text); }
 function addCall(deck, text){ return addActivity(deck, 'call', text); }
+function deleteActivity(deck, id){ return saveDeckPatch(deck, { activities: deckActivities(deck).filter(a => a.id !== id) }); }
+function deleteHistory(deck, h){
+  const cur = DB.decks.find(x=>x.id===deck.id) || deck;
+  let removed = false;
+  const next = (Array.isArray(cur.history)?cur.history:[]).filter(x => {
+    if (!removed && x.at === h.at && x.detail === h.detail) { removed = true; return false; }   // drop the first exact match
+    return true;
+  });
+  return saveDeckPatch(deck, { history: next });
+}
 // Lightweight audit log: append {at, by, type, detail} to deck.history, return the new array (cap 60).
 function pushHist(arr, type, detail){ const h = (Array.isArray(arr) ? arr : []).slice(); h.push({ at:new Date().toISOString(), by:(AUTH&&AUTH.name)||'', type:type, detail:detail }); return h.slice(-60); }
 function infoRow(k, v){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, k), el('span',{class:'lead-info-v'}, v)); }
 function leadTimeline(deck, meetings, emails){
   const ev = [];
+  const rerender = () => renderLead(DB.decks.find(x=>x.id===deck.id) || deck);
   if (deck.createdAt) ev.push({ date:deck.createdAt, icon:TL_ICON.plus, title:'Lead created', sub: sourceLabel(deck) });
   const g = deck.callGrade;
-  if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Demo call', sub: ['Call — view what was discussed', (g.grade ? 'graded ' + g.grade : '')].filter(Boolean).join('  ·  '), onClick:()=>openAnalysisDrawer(deck) });
-  if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'' });
+  if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Demo call', sub: ['Call — view what was discussed', (g.grade ? 'graded ' + g.grade : '')].filter(Boolean).join('  ·  '), onClick:()=>openAnalysisDrawer(deck), del:()=>{ saveDeckPatch(deck, { callGrade:null, gradeMiss:new Date().toISOString() }); rerender(); }, delMsg:'Remove this call grade from the timeline?' });
+  if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'', del:()=>{ saveDeckPatch(deck, { emailedAt:'' }); rerender(); }, delMsg:'Remove the “deck + proposal emailed” marker?' });
   if (deck.followup && deck.followup.scheduled && deck.followup.startTime) ev.push({ date:deck.followup.startTime, icon:TL_ICON.cal, title:(new Date(deck.followup.startTime).getTime() > Date.now() ? 'Follow-up booked' : 'Follow-up'), sub: deck.followup.title || '' });
   deckTasks(deck).forEach(t => {
-    if (t.createdAt) ev.push({ date:t.createdAt, icon:TL_ICON.check, title:'Task created', sub:t.text });
+    if (t.createdAt) ev.push({ date:t.createdAt, icon:TL_ICON.check, title:'Task created', sub:t.text, del:()=>{ deleteTask(deck, t.id); rerender(); }, delMsg:'Delete this task?' });
     if (t.done && t.doneAt) ev.push({ date:t.doneAt, icon:TL_ICON.check, title:'Task completed', sub:t.text });
   });
   deckActivities(deck).forEach(a => {
     const who = a.by ? (' · ' + String(a.by).split(/\s+/)[0]) : '';
-    if (a.type==='note') ev.push({ date:a.date, icon:TL_ICON.note, title:'Note' + who, note:a.text });
-    else if (a.type==='call') ev.push({ date:a.date, icon:TL_ICON.phone, title:'Call logged' + who, note:a.text });
+    if (a.type==='note') ev.push({ date:a.date, icon:TL_ICON.note, title:'Note' + who, note:a.text, del:()=>{ deleteActivity(deck, a.id); rerender(); }, delMsg:'Delete this note?' });
+    else if (a.type==='call') ev.push({ date:a.date, icon:TL_ICON.phone, title:'Call logged' + who, note:a.text, del:()=>{ deleteActivity(deck, a.id); rerender(); }, delMsg:'Delete this logged call?' });
   });
-  (Array.isArray(deck.history) ? deck.history : []).forEach(h => ev.push({ date:h.at, icon:TL_ICON.log, title:h.detail || 'Updated', sub:(h.by ? String(h.by).split(/\s+/)[0] : '') + '  ·  log', muted:true }));
+  (Array.isArray(deck.history) ? deck.history : []).forEach(h => ev.push({ date:h.at, icon:TL_ICON.log, title:h.detail || 'Updated', sub:(h.by ? String(h.by).split(/\s+/)[0] : '') + '  ·  log', muted:true, del:()=>{ deleteHistory(deck, h); rerender(); }, delMsg:'Remove this entry from the timeline? (If it was a stage change, set the stage back with the dropdown up top so the AI re-reads it.)' }));
   (meetings||[]).forEach(m => ev.push({ date:m.start, icon:TL_ICON.cal, title: m.title || 'Meeting', sub:'Calendar' }));
   (emails||[]).forEach(m => ev.push({ date:m.date, icon:TL_ICON.mail, title: m.subject || '(no subject)', sub: (m.sent ? 'You → ' + (deck.contactFirst||'contact') : (deck.contactFirst||'Contact') + ' → you') + '  ·  Gmail', email:true, emailId:m.id, snippet:m.snippet }));
   ev.sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -4913,25 +4934,80 @@ function renderLead(deck){
     syncGoogleActivity().then(()=>{ if (state.view==='lead' && state.leadId===deck.id) renderLead(deck); }).catch(()=>{});
   }
 }
+// --- Inline-editable lead fields ---
+function leadEditInput(value, onSave, attrs){
+  const inp = el('input', Object.assign({ class:'lead-edit-input', value: (value==null?'':value) }, attrs||{}));
+  if (onSave){ inp.addEventListener('change', ()=> onSave(inp.value.trim())); inp.addEventListener('keydown', e=>{ if(e.key==='Enter') inp.blur(); }); }
+  return inp;
+}
+function leadEditRow(label, control){ return el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'}, label), control); }
+function leadOwnerSelect(deck){
+  const team = getTeam();
+  const sel = el('select',{class:'lead-edit-input' + (deck.salespersonId?'':' unassigned')});
+  sel.appendChild(el('option',{value:''},'Unassigned'));
+  team.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).forEach(p => sel.appendChild(el('option',{value:p.id}, p.name||p.email||'Rep')));
+  sel.value = deck.salespersonId || '';
+  sel.addEventListener('change', ()=>{
+    const cur = DB.decks.find(x=>x.id===deck.id)||deck;
+    const prev = (team.find(p=>p.id===cur.salespersonId)||{}).name || 'Unassigned';
+    const nm = (team.find(p=>p.id===sel.value)||{}).name || 'Unassigned';
+    saveDeckPatch(deck, { salespersonId: sel.value, history: pushHist(cur.history,'owner','Owner ' + prev + ' → ' + nm) });
+    renderLead(DB.decks.find(x=>x.id===deck.id)||deck);
+  });
+  return sel;
+}
+function leadStageSelect(deck){
+  const sel = el('select',{class:'lead-edit-input'}, ...STAGES.map(s=>el('option',{value:s.key}, s.label)));
+  sel.value = dealStage(deck);
+  sel.addEventListener('change', ()=>{ setDeckStage(deck.id, sel.value); renderLead(DB.decks.find(x=>x.id===deck.id)||deck); });
+  return sel;
+}
+function leadSourceRows(deck){
+  const sourceSel = el('select',{class:'lead-edit-input'}, ...sourceNames().map(n=>el('option',{value:n}, n)));
+  if (deck.leadSource && !sourceNames().includes(deck.leadSource)) sourceSel.appendChild(el('option',{value:deck.leadSource}, deck.leadSource));
+  sourceSel.value = deck.leadSource || sourceNames()[0] || '';
+  const subSel = el('select',{class:'lead-edit-input'});
+  const subRow = leadEditRow('Sub-source', subSel);
+  const drawSub = ()=>{
+    const subs = subsFor(sourceSel.value); subSel.innerHTML='';
+    if (!subs.length){ subRow.style.display='none'; return; }
+    subRow.style.display='';
+    subSel.appendChild(el('option',{value:''},'— none —'));
+    subs.forEach(s => subSel.appendChild(el('option',{value:s}, s)));
+    if (deck.leadSubSource && !subs.includes(deck.leadSubSource)) subSel.appendChild(el('option',{value:deck.leadSubSource}, deck.leadSubSource));
+    subSel.value = (deck.leadSubSource && subs.includes(deck.leadSubSource)) ? deck.leadSubSource : '';
+  };
+  drawSub();
+  sourceSel.addEventListener('change', ()=>{ drawSub(); saveDeckPatch(deck, { leadSource: sourceSel.value, leadSubSource: (subsFor(sourceSel.value).length ? subSel.value : '') }); });
+  subSel.addEventListener('change', ()=> saveDeckPatch(deck, { leadSubSource: subSel.value }));
+  return [ leadEditRow('Source', sourceSel), subRow ];
+}
+function leadContactCard(deck){
+  const firstInput = el('input',{class:'lead-edit-input', value: deck.contactFirst||'', placeholder:'First'});
+  const lastInput  = el('input',{class:'lead-edit-input', value: deck.contactLast||'', placeholder:'Last'});
+  const saveName = ()=> saveDeckPatch(deck, { contactFirst: firstInput.value.trim(), contactLast: lastInput.value.trim() });
+  firstInput.addEventListener('change', saveName); lastInput.addEventListener('change', saveName);
+  return el('div',{class:'lead-card'},
+    el('div',{class:'lead-card-h'},'Contact'),
+    leadEditRow('Name', el('div',{class:'lead-name-edit'}, firstInput, lastInput)),
+    leadEditRow('Email', leadEditInput(deck.contactEmail, v=>saveDeckPatch(deck,{contactEmail:v}), {type:'email', placeholder:'email@school.org'})),
+    leadEditRow('Phone', leadEditInput(deck.contactPhone, v=>saveDeckPatch(deck,{contactPhone:v}), {placeholder:'(555) 123-4567'}))
+  );
+}
 function renderLeadOverview(deck, content, sp, contact){
   const amtInput = el('input',{type:'number', min:'0', step:'100', value:(deck.amount!=null&&deck.amount!=='')?deck.amount:'', placeholder:String(dealAmount(deck)), class:'lead-amt'});
   amtInput.addEventListener('change', ()=>{ const cur = DB.decks.find(x=>x.id===deck.id) || deck; const v = amtInput.value.trim(); saveDeckPatch(deck, { amount: v, history: pushHist(cur.history, 'forecast', 'Forecast → ' + (v ? ('$'+(Number(v)||0).toLocaleString()) : 'standard')) }); });
   const left = el('div',{class:'lead-left'},
     el('div',{class:'lead-card'},
       el('div',{class:'lead-card-h'},'Deal'),
-      infoRow('Owner', sp ? sp.name : 'Unassigned'),
+      leadEditRow('Owner', leadOwnerSelect(deck)),
       el('div',{class:'lead-info-row'}, el('span',{class:'lead-info-k'},'Forecast'), el('div',{class:'lead-amt-wrap'}, el('span',{class:'lead-amt-$'},'$'), amtInput, el('span',{class:'lead-amt-yr'},'/yr'))),
-      infoRow('Source', sourceLabel(deck) || '—'),
-      infoRow('Stage', stageMeta(dealStage(deck)).label),
+      leadEditRow('Stage', leadStageSelect(deck)),
+      ...leadSourceRows(deck),
       infoRow('Created', deck.createdAt ? fmtDay(deck.createdAt) : '—')
     ),
     leadMilestonesCard(deck),
-    el('div',{class:'lead-card'},
-      el('div',{class:'lead-card-h'},'Contact'),
-      infoRow('Name', contact || '—'),
-      infoRow('Email', deck.contactEmail ? el('a',{href:'mailto:'+deck.contactEmail, class:'lead-link-a'}, deck.contactEmail) : '—'),
-      infoRow('Phone', deck.contactPhone ? el('a',{href:'tel:'+deck.contactPhone, class:'lead-link-a'}, deck.contactPhone) : '—')
-    ),
+    leadContactCard(deck),
     leadSequenceCard(deck)
   );
   const ovCard = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'AI overview'));
@@ -5624,7 +5700,12 @@ function tlNode(e, opts){
     });
   } else if (e.onClick){ head.classList.add('clickable'); head.addEventListener('click', e.onClick); }
   if (e.note) content.appendChild(el('div',{class:'tl-note-body'}, e.note));
-  return el('div',{class:'tl-item' + (e.muted ? ' tl-muted' : '')}, node, content);
+  const item = el('div',{class:'tl-item' + (e.muted ? ' tl-muted' : '')}, node, content);
+  if (e.del && !opts.limit){   // delete affordance on the full timeline only (not the Overview mini-list)
+    item.appendChild(el('button',{class:'tl-del', type:'button', title:'Remove from timeline',
+      onClick:(ev)=>{ ev.stopPropagation(); if (confirm(e.delMsg || 'Remove this from the timeline?')) e.del(); }}, '✕'));
+  }
+  return item;
 }
 
 /* ---------- CRM section navigation ---------- */
