@@ -4380,7 +4380,7 @@ function paintLeadAI(deck, ovBody, nxBody){
   if (cached){
     ovBody.innerHTML=''; ovBody.appendChild(el('div',{class:'lead-ai-text'}, cached.overview || 'No overview yet.'));
     nxBody.innerHTML=''; nxBody.appendChild(el('div',{class:'lead-ai-text'}, cached.recommendation || '—'));
-    nxBody.appendChild(el('button',{class:'btn sm', style:'margin-top:14px', type:'button', onClick:()=>openEmailModal(cur, {attach:false})}, 'Draft email →'));
+    nxBody.appendChild(el('button',{class:'btn sm', style:'margin-top:14px', type:'button', onClick:()=>openEmailModal(cur, cached.emailBody ? { attach:false, draft:{ subject:cached.emailSubject, body:cached.emailBody, recommendation:cached.recommendation } } : { attach:false, autodraft:true })}, 'Draft email →'));
     return;
   }
   ovBody.innerHTML=''; ovBody.appendChild(aiLoading('Reading the account…'));
@@ -4668,7 +4668,7 @@ function renderTasksSection(){
         el('div',{class:'nt-task'}, el('span',{class:'nt-acct', onClick:()=>openLead(deck,'tasks')}, deck.school)),
         el('div',{class:'nt-meta'}, daysQuiet(deck) + ' days quiet  ·  ' + repName(deck.salespersonId))),
       el('div',{class:'nt-actions'},
-        el('button',{class:'btn sm', onClick:()=>openEmailModal(deck)},'Draft email'),
+        el('button',{class:'btn sm', onClick:()=>openEmailModal(deck, {autodraft:true})},'Draft email'),
         el('button',{class:'btn ghost sm', onClick:()=>openLead(deck,'tasks')},'Open'))
     ));
   });
@@ -4762,7 +4762,7 @@ function openTodayDrawer(){
   );
   if (dg.nudges.length){
     body.appendChild(el('div',{class:'dg-sec'}, el('span',{class:'dg-sec-icon nudge', html: BELL_MINI}), 'Deals to nudge (' + dg.nudges.length + ')'));
-    dg.nudges.forEach(deck => body.appendChild(digestItem(deck, el('span',{class:'dg-tag warn'}, daysQuiet(deck) + 'd quiet'), () => { closeModal(); openEmailModal(deck); })));
+    dg.nudges.forEach(deck => body.appendChild(digestItem(deck, el('span',{class:'dg-tag warn'}, daysQuiet(deck) + 'd quiet'), () => { closeModal(); openEmailModal(deck, {autodraft:true}); })));
   }
   if (dg.soon.length){
     body.appendChild(el('div',{class:'dg-sec'}, el('span',{class:'dg-sec-icon', html: CAL_MINI}), 'Follow-ups in the next 3 days (' + dg.soon.length + ')'));
@@ -5632,41 +5632,28 @@ function openEmailModal(deck, opts){
     }
   });
   const recNote = el('div',{class:'rec-note', style:'display:none'});
+  const BULB_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>';
   const suggestBtn = el('button',{class:'btn sm ghost personalize-btn', type:'button'},
-    el('span',{html:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>'}),
-    el('span',{class:'sg-label'}, 'Suggest next step'));
+    el('span',{html:BULB_ICON}), el('span',{class:'sg-label'}, 'Rewrite with AI'));
   const sgLabel = suggestBtn.querySelector('.sg-label');
-  suggestBtn.addEventListener('click', async () => {
-    if (!SUPABASE_URL){ set('Cloud isn’t configured, so we can’t reach the recommend service.'); return; }
-    suggestBtn.disabled = true; sgLabel.textContent = 'Thinking…';
-    set('Reading the deal and recommending the next step…');
+  const showRec = (rec) => { if (!rec) return; recNote.innerHTML=''; recNote.appendChild(el('span',{class:'rec-icon', html:BULB_ICON.replace('width="13" height="13"','width="15" height="15"')})); recNote.appendChild(el('div',{}, el('div',{class:'rec-label'},'Recommended next step'), el('div',{}, rec))); recNote.style.display=''; };
+  async function doDraft(){
+    if (!SUPABASE_URL){ set('Cloud isn’t configured, so we can’t reach the AI service.'); return; }
+    suggestBtn.disabled = true; sgLabel.textContent = 'Writing…';
+    set('Reading the account history and drafting the email…');
+    const keep = bodyArea.value;
+    bodyArea.value = ''; bodyArea.setAttribute('placeholder', 'Writing your email from what’s happened with this account…');
     try {
       const cur = DB.decks.find(d => d.id === deck.id) || deck;
-      const g = cur.callGrade || {};
-      const r = await fetch(SUPABASE_URL + '/functions/v1/recommend-action', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-        body: JSON.stringify({
-          school: cur.school, contactFirst: cur.contactFirst || '',
-          rep: sp ? { name: sp.name } : null,
-          daysQuiet: daysQuiet(cur), lastTouch: lastTouchDate(cur),
-          followup: cur.followup ? { scheduled: cur.followup.scheduled, startTime: cur.followup.startTime } : null,
-          emailed: !!cur.emailedAt,
-          callSummary: g.summary || '', callHeadline: g.headline || '', callImprovements: g.improvements || [], grade: g.grade || ''
-        })
-      });
-      const data = await r.json().catch(()=>({ error: 'Unexpected response from the service.' }));
-      if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
-      recNote.innerHTML = '';
-      recNote.appendChild(el('span',{class:'rec-icon', html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg>'}));
-      recNote.appendChild(el('div',{}, el('div',{class:'rec-label'},'Recommended next step'), el('div',{}, data.recommendation || '')));
-      recNote.style.display = '';
+      const data = await generateLeadAI(cur);   // rich context: stage, history, notes, synced email/meetings
       if (data.emailSubject) subjInput.value = data.emailSubject;
-      if (data.emailBody) bodyArea.value = data.emailBody;
-      set('Drafted from the recommendation below. Review and send.');
-    } catch(e){ set('Couldn’t suggest a next step: ' + (e && e.message ? e.message : e)); }
-    finally { suggestBtn.disabled = false; sgLabel.textContent = 'Suggest next step'; }
-  });
+      bodyArea.value = data.emailBody || keep;
+      showRec(data.recommendation);
+      set('Drafted from the account history. Review and send.');
+    } catch(e){ bodyArea.value = bodyArea.value || keep; set('Couldn’t draft: ' + (e && e.message ? e.message : e)); }
+    finally { suggestBtn.disabled = false; sgLabel.textContent = 'Rewrite with AI'; }
+  }
+  suggestBtn.addEventListener('click', doDraft);
   const body = el('div',{},
     el('div',{class:'modal-h'},'Email the prospect'),
     el('div',{class:'modal-desc'},'Review and send it from your Gmail. Attachments are optional — your signature is added automatically.'),
@@ -5697,6 +5684,15 @@ function openEmailModal(deck, opts){
     )
   );
   openModal(body, { drawer: true });
+  // Launch straight into an AI-written draft when asked (nudges + lead "Draft email").
+  if (opts.draft && (opts.draft.subject || opts.draft.body)){
+    if (opts.draft.subject) subjInput.value = opts.draft.subject;
+    if (opts.draft.body) bodyArea.value = opts.draft.body;
+    showRec(opts.draft.recommendation);
+    set('Drafted from the account history. Review and send.');
+  } else if (opts.autodraft){
+    doDraft();
+  }
 }
 
 /* --- Persist the rep's live discovery answers back to the saved deck --- */
