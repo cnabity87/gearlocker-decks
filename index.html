@@ -2449,6 +2449,21 @@
   .goal-status { font-size: 12px; font-weight: 700; }
   .goal-status.ok { color: #1f7d45; }
   .goal-status.warn { color: var(--accent-dark, #c2302b); }
+  /* Goals vs actuals tab */
+  .gv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 4px; }
+  .gv-stat { background: var(--wash); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .gv-stat-top { display: flex; align-items: baseline; }
+  .gv-stat-num { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .gv-stat-of { font-size: 13px; font-weight: 600; color: var(--ink-4); }
+  .gv-stat-lbl { font-size: 12px; font-weight: 600; color: var(--ink-4); margin-top: 4px; }
+  .gv-cell { display: inline-flex; align-items: baseline; gap: 0; padding: 2px 9px; border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .gv-cell-t { font-size: 11px; font-weight: 600; opacity: .75; }
+  .gv-cell.gv-ok { background: rgba(31,157,85,.14); color: #1f7d45; }
+  .gv-cell.gv-miss { background: rgba(238,54,47,.12); color: var(--accent-dark, #c2302b); }
+  .gv-cell.gv-pace { background: rgba(182,120,26,.15); color: #b6781a; }
+  .gv-cell.gv-none { background: transparent; color: var(--ink-3); font-weight: 600; }
+  .gv-table td:first-child, .gv-table th:first-child { font-weight: 600; }
+  @media (max-width: 720px){ .gv-summary { grid-template-columns: repeat(2, 1fr); } }
   /* Goals settings form */
   .goals-settings { display: flex; flex-direction: column; gap: 16px; max-width: 460px; margin-top: 6px; }
   .goal-set-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -3313,10 +3328,10 @@ function sourceNames(){ return SOURCES.map(s => s.name); }
 function subsFor(name){ const s = SOURCES.find(x => x.name === name); return s ? s.subs : []; }
 /* ---- Monthly goals (dashboard pacing) ---- */
 const GOALS_KEY = 'gl_goals_v1';
-const DEFAULT_GOALS = { leads:0, demos:0, sales:0 };
+const DEFAULT_GOALS = { leads:0, demos:0, salesCount:0, sales:0 };   // sales = $ amount, salesCount = # of won deals
 let GOALS = Object.assign({}, DEFAULT_GOALS);
 function goalsConfig(){ return { type:'goals', goals: GOALS }; }
-function applyGoals(cfg){ if (cfg && cfg.goals) GOALS = Object.assign({}, DEFAULT_GOALS, { leads:Number(cfg.goals.leads)||0, demos:Number(cfg.goals.demos)||0, sales:Number(cfg.goals.sales)||0 }); }
+function applyGoals(cfg){ if (cfg && cfg.goals) GOALS = Object.assign({}, DEFAULT_GOALS, { leads:Number(cfg.goals.leads)||0, demos:Number(cfg.goals.demos)||0, salesCount:Number(cfg.goals.salesCount)||0, sales:Number(cfg.goals.sales)||0 }); }
 function saveGoals(g){ applyGoals({ goals:g }); saveJSON(GOALS_KEY, goalsConfig()); if (cloudOn()) sbUpsert('settings', 'goals', goalsConfig()).catch(e => console.warn('goals sync failed', e)); }
 function sourceLabel(deck){ const src = deck.leadSource || ''; return src + (deck.leadSubSource ? ' — ' + deck.leadSubSource : ''); }
 // A source <select> + conditional sub-source <select>, wired so the sub options swap when the source changes.
@@ -4479,6 +4494,7 @@ function renderGoalsSettings(){
   const fields = [
     { key:'leads', label:'New leads per month', placeholder:'e.g. 40' },
     { key:'demos', label:'Demos per month', placeholder:'e.g. 12' },
+    { key:'salesCount', label:'Sales (count) per month', placeholder:'e.g. 5' },
     { key:'sales', label:'Sales ($) per month', placeholder:'e.g. 50000', money:true }
   ];
   const form = el('div',{class:'goals-settings'});
@@ -4492,7 +4508,7 @@ function renderGoalsSettings(){
   wrap.appendChild(form);
   const save = ()=>{ saveGoals(draft); status.textContent = 'Saved ✓'; setTimeout(()=>status.textContent='', 2500); };
   wrap.appendChild(el('div',{class:'settings-actions'},
-    el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ saveGoals({leads:0,demos:0,sales:0}); renderSettingsPage(); }}, 'Clear targets'),
+    el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ saveGoals({leads:0,demos:0,salesCount:0,sales:0}); renderSettingsPage(); }}, 'Clear targets'),
     el('div',{style:'display:flex;align-items:center;gap:16px'}, status, el('button',{class:'btn primary', type:'button', onClick:save}, 'Save'))));
   return wrap;
 }
@@ -6284,6 +6300,8 @@ function renderMetrics(){
   if (tab === 'overview'){
     content.appendChild(kpiRow);
     content.appendChild(el('div',{class:'metric-grid'}, goalsSection(decks), forecastSection(decks)));
+  } else if (tab === 'goals'){
+    content.appendChild(goalsActualsSection(decks, months));
   } else if (tab === 'trends'){
     content.appendChild(kpiRow);
     content.appendChild(chartsGrid);
@@ -6295,7 +6313,7 @@ function renderMetrics(){
   }
 }
 function metricsTabBar(){
-  const tabs = [['overview','Overview'],['trends','Trends'],['funnel','Funnel'],['activity','Activity']];
+  const tabs = [['overview','Overview'],['goals','Goals'],['trends','Trends'],['funnel','Funnel'],['activity','Activity']];
   const active = state.metricsTab || 'overview';
   return el('div',{class:'mx-tabs'}, ...tabs.map(([k,lab]) =>
     el('button',{class:'mx-tab'+(active===k?' active':''), type:'button', onClick:()=>{ state.metricsTab=k; renderMetrics(); window.scrollTo(0,0); }}, lab)));
@@ -6481,6 +6499,67 @@ function goalsSection(decks){
         target ? el('span',{class:'goal-status ' + (ahead?'ok':'warn')}, pct + '% · pace ' + pace + '%') : null)));
   });
   card.appendChild(wrap);
+  return card;
+}
+// Per-month values for a metric over the given months.
+function monthlySeries(decks, dateFn, months, valFn){
+  const idx = {}; months.forEach((m,i)=> idx[m.key]=i);
+  const out = months.map(()=>0);
+  decks.forEach(d => { const dt = dateFn(d); if (!dt) return; const k = monthKey(dt); if (k in idx) out[idx[k]] += valFn ? valFn(d) : 1; });
+  return out;
+}
+// Goals vs actuals, by month — the "are we on track?" tracker. Targets come from Settings → Goals.
+function goalsActualsSection(decks, months){
+  const card = el('div',{class:'metric-card'});
+  card.appendChild(el('div',{class:'metric-h'}, el('span',{}, 'Goals vs actuals — by month'),
+    infoTip('Each month’s actuals against your monthly targets (set in Settings → Goals). Green = hit target, red = missed. The current month is judged against pace (target × % of month elapsed).'),
+    el('div',{class:'metric-h-actions'}, el('button',{class:'metric-data-toggle', type:'button', onClick:()=>openSettingsPage('goals')}, 'Edit goals'))));
+  if (!(Number(GOALS.leads)||Number(GOALS.demos)||Number(GOALS.salesCount)||Number(GOALS.sales))){
+    card.appendChild(el('div',{class:'lead-empty', style:'padding:20px 4px'},
+      el('div',{style:'margin-bottom:12px'},'No monthly targets set yet.'),
+      el('button',{class:'btn sm primary', type:'button', onClick:()=>openSettingsPage('goals')},'Set targets in Settings')));
+    return card;
+  }
+  const metrics = [
+    { key:'leads',      label:'Leads',       target:Number(GOALS.leads)||0,      fmt:String, vals: monthlySeries(decks, d=>d.createdAt, months) },
+    { key:'demos',      label:'Demos',       target:Number(GOALS.demos)||0,      fmt:String, vals: monthlySeries(decks, demoDate, months) },
+    { key:'salesCount', label:'Sales (#)',   target:Number(GOALS.salesCount)||0, fmt:String, vals: monthlySeries(decks, closedWonDate, months) },
+    { key:'sales',      label:'Sales ($)',   target:Number(GOALS.sales)||0,      fmt:fmtUSD, vals: monthlySeries(decks, closedWonDate, months, d=>dealAmount(d)) }
+  ];
+  const curKey = new Date().toISOString().slice(0,7);
+  const now = new Date(); const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate(); const pace = now.getDate()/dim;
+  // window summary: total actual vs (target × months)
+  const summary = el('div',{class:'gv-summary'});
+  metrics.forEach(m => {
+    const total = m.vals.reduce((a,b)=>a+b,0);
+    const tgt = m.target * months.length;
+    const pct = tgt ? Math.round(100*total/tgt) : null;
+    summary.appendChild(el('div',{class:'gv-stat'},
+      el('div',{class:'gv-stat-top'}, el('span',{class:'gv-stat-num'}, m.fmt(total)), m.target ? el('span',{class:'gv-stat-of'}, ' / ' + m.fmt(tgt)) : null),
+      el('div',{class:'gv-stat-lbl'}, m.label + (m.target ? (pct!=null ? (' · ' + pct + '% of target') : '') : ' · no target'))));
+  });
+  card.appendChild(summary);
+  // month-by-month table (newest first), color-coded vs target
+  const cell = (val, target, fmt, isCur) => {
+    if (!target) return el('td',{class:'num'}, el('span',{class:'gv-cell gv-none'}, fmt(val)));
+    const ok = isCur ? (val >= target*pace) : (val >= target);
+    const cls = ok ? 'gv-ok' : (isCur ? 'gv-pace' : 'gv-miss');
+    return el('td',{class:'num'}, el('span',{class:'gv-cell ' + cls}, fmt(val), el('span',{class:'gv-cell-t'}, ' / ' + fmt(target))));
+  };
+  const rows = [];
+  for (let i = months.length-1; i >= 0; i--){
+    const m = months[i], isCur = m.key === curKey;
+    rows.push(el('tr',{},
+      el('td',{}, m.label + (isCur ? ' · now' : '')),
+      cell(metrics[0].vals[i], metrics[0].target, String, isCur),
+      cell(metrics[1].vals[i], metrics[1].target, String, isCur),
+      cell(metrics[2].vals[i], metrics[2].target, String, isCur),
+      cell(metrics[3].vals[i], metrics[3].target, fmtUSD, isCur)));
+  }
+  card.appendChild(el('div',{class:'metric-table-scroll', style:'margin-top:16px'},
+    el('table',{class:'metric-table gv-table'},
+      el('thead',{}, el('tr',{}, el('th',{},'Month'), ...metrics.map(m => el('th',{class:'num'}, m.label + (m.target ? '' : ''))))),
+      el('tbody',{}, ...rows))));
   return card;
 }
 function setDeckStage(deckId, newStage){
