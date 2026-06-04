@@ -2285,6 +2285,18 @@
   .analysis-empty-icon { color: var(--accent); display: inline-flex; margin-bottom: 14px; }
   .analysis-empty h3 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
   .analysis-empty p { font-size: 14px; color: var(--ink-3); max-width: 480px; margin: 0 auto 22px; line-height: 1.55; }
+  .disc { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 8px; }
+  .disc-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); margin-bottom: 12px; }
+  .disc-date { font-size: 12.5px; font-weight: 600; color: var(--ink-4); }
+  .disc-overview { font-size: 14px; color: var(--ink-2); line-height: 1.6; margin: 0 0 4px; }
+  .disc-block { margin-top: 16px; }
+  .disc-h { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin-bottom: 7px; }
+  .disc-h.good { color: #1f9d55; }
+  .disc-h.work { color: #b5651a; }
+  .disc-ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+  .disc-ul li { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+  .disc-divider { text-align: center; border-top: 1px solid var(--border); margin: 26px 0 18px; }
+  .disc-divider span { position: relative; top: -10px; background: var(--paper); padding: 0 12px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-4); }
   .grade-hero { display: flex; align-items: center; gap: 22px; padding: 24px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 22px; }
   .grade-badge { width: 84px; height: 84px; flex-shrink: 0; border-radius: 18px; color: #fff; font-size: 36px; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; justify-content: center; }
   .grade-hero-body { min-width: 0; }
@@ -3993,7 +4005,7 @@ function leadTimeline(deck, meetings, emails){
   const ev = [];
   if (deck.createdAt) ev.push({ date:deck.createdAt, icon:TL_ICON.plus, title:'Lead created', sub: deck.leadSource || '' });
   const g = deck.callGrade;
-  if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Sales call', sub: (g.grade ? ('Graded ' + g.grade + ' · ' + g.overall + '/100') : ''), onClick:()=>openAnalysisDrawer(deck) });
+  if (g && (g.meetingDate || g.analyzedAt)) ev.push({ date: g.meetingDate || g.analyzedAt, icon:TL_ICON.phone, title: g.meetingTitle || 'Demo call', sub: ['Call — view what was discussed', (g.grade ? 'graded ' + g.grade : '')].filter(Boolean).join('  ·  '), onClick:()=>openAnalysisDrawer(deck) });
   if (deck.emailedAt) ev.push({ date:deck.emailedAt, icon:TL_ICON.mail, title:'Email sent — deck + proposal', sub:'' });
   if (deck.followup && deck.followup.scheduled && deck.followup.startTime) ev.push({ date:deck.followup.startTime, icon:TL_ICON.cal, title:(new Date(deck.followup.startTime).getTime() > Date.now() ? 'Follow-up booked' : 'Follow-up'), sub: deck.followup.title || '' });
   deckTasks(deck).forEach(t => {
@@ -4852,7 +4864,7 @@ function renderAnalysisInto(body, deck){
   body.innerHTML = '';
   const sp = getTeam().find(p => p.id === deck.salespersonId);
   const g = deck.callGrade;
-  body.appendChild(el('div',{class:'modal-h'}, 'Call analysis'));
+  body.appendChild(el('div',{class:'modal-h'}, 'Call details'));
   body.appendChild(el('p',{class:'analysis-sub'}, [deck.school, sp ? sp.name : null, deck.contactEmail || 'no contact email on this deck'].filter(Boolean).join('  ·  ')));
 
   if (!g){
@@ -4867,6 +4879,22 @@ function renderAnalysisInto(body, deck){
     ));
     return;
   }
+
+  // ---- What was discussed (deal-focused) — leads the view ----
+  const disc = g.discussion;
+  const discList = (label, arr, cls) => (arr && arr.length) ? el('div',{class:'disc-block'}, el('div',{class:'disc-h ' + (cls||'')}, label), el('ul',{class:'disc-ul'}, ...arr.map(x => el('li',{}, x)))) : null;
+  const discWrap = el('div',{class:'disc'});
+  discWrap.appendChild(el('div',{class:'disc-title'}, 'What was discussed',
+    (g.meetingDate ? el('span',{class:'disc-date'}, g.meetingDate) : null)));
+  if (disc && disc.overview) discWrap.appendChild(el('p',{class:'disc-overview'}, disc.overview));
+  else if (g.summary) discWrap.appendChild(el('div',{class:'disc-overview', style:'white-space:pre-wrap'}, g.summary));
+  else discWrap.appendChild(el('p',{class:'disc-overview'}, 'No recap available for this call.'));
+  if (disc){
+    [ discList('Key points', disc.keyPoints), discList('Objections raised', disc.objections, 'work'), discList('Agreed next steps', disc.nextSteps, 'good') ].forEach(b => { if (b) discWrap.appendChild(b); });
+  }
+  if (g.recordingUrl) discWrap.appendChild(el('a',{class:'btn ghost sm', href:g.recordingUrl, target:'_blank', rel:'noopener', style:'margin-top:14px'}, '▶  Watch the recording in Fathom'));
+  body.appendChild(discWrap);
+  body.appendChild(el('div',{class:'disc-divider'}, el('span',{}, 'Rep coaching')));
 
   body.appendChild(el('div',{class:'grade-hero'},
     el('div',{class:'grade-badge', style:'background:' + gradeColor(g.overall)}, g.grade || ''),
@@ -4901,8 +4929,8 @@ function renderAnalysisInto(body, deck){
     )
   ));
 
-  if (g.summary) body.appendChild(el('details',{class:'grade-summary'},
-    el('summary',{}, 'Fathom call summary'),
+  if (disc && g.summary) body.appendChild(el('details',{class:'grade-summary'},
+    el('summary',{}, 'Full Fathom call summary'),
     el('div',{class:'grade-summary-body'}, g.summary)
   ));
 
