@@ -4082,13 +4082,18 @@ function gmailExtractBody(payload){
   walk(payload);
   return (plain || htmlToText(html)).trim();
 }
+const EMAIL_BODY_CACHE = {};   // memoize full bodies by message id (bodies are immutable)
 async function fetchEmailBody(id){
+  if (!id) return '';
+  if (EMAIL_BODY_CACHE[id] != null) return EMAIL_BODY_CACHE[id];
   const token = await getTokenSilent(); if (!token) return '';
   try {
     const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+id+'?format=full', { headers:{ Authorization:'Bearer '+token } });
     if (!r.ok) return '';
     const m = await r.json();
-    return gmailExtractBody(m.payload) || m.snippet || '';
+    const out = gmailExtractBody(m.payload) || m.snippet || '';
+    EMAIL_BODY_CACHE[id] = out;
+    return out;
   } catch(e){ return ''; }
 }
 async function getTokenSilent(){
@@ -4395,7 +4400,7 @@ function renderLeadOverview(deck, content, sp, contact){
   fillTimeline(mini, deck, { limit:5, expandable:false });
   content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, ovCard, nxCard, actCard)));
 }
-const AI_SIG_V = 'ai3';   // bump when the AI prompt/output shape changes to invalidate cached overviews
+const AI_SIG_V = 'ai4';   // bump when the AI prompt/output shape changes to invalidate cached overviews
 function leadAISig(deck){
   const acts = deckActivities(deck), tasks = deckTasks(deck);
   // built from PERSISTED, shared fields only (not per-user session caches) so the saved overview is stable across reps
@@ -4419,10 +4424,22 @@ function buildLeadAIPayload(deck){
     meetings: cachedMeetingsFor(deck).slice(0,12).map(m=>({date:m.start, title:m.title}))
   };
 }
+// Same as buildLeadAIPayload but with the FULL BODIES of the recent emails (not just subjects),
+// so per-deal suggestions and drafts are grounded in what was actually said.
+async function buildLeadAIPayloadFull(deck){
+  const base = buildLeadAIPayload(deck);
+  const ems = cachedEmailsFor(deck).slice(0, 8);
+  base.emails = await Promise.all(ems.map(async e => {
+    let body = '';
+    if (e.id) body = await fetchEmailBody(e.id).catch(()=>'');
+    return { date:e.date, dir:e.sent?'sent':'received', subject:e.subject||'', body:String(body || e.snippet || '').slice(0, 2200) };
+  }));
+  return base;
+}
 async function generateLeadAI(deck){
   const r = await fetch(SUPABASE_URL + '/functions/v1/recommend-action', {
     method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify(buildLeadAIPayload(deck))
+    body: JSON.stringify(await buildLeadAIPayloadFull(deck))
   });
   const data = await r.json().catch(()=>({error:'Unexpected response.'}));
   if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
@@ -4447,7 +4464,7 @@ function repliesToSend(){
 async function generateReply(deck, inbound){
   let body = inbound && inbound.body ? inbound.body : '';
   if (!body && inbound && inbound.id) body = await fetchEmailBody(inbound.id).catch(()=>'');
-  const payload = Object.assign(buildLeadAIPayload(deck), { inboundSubject: inbound.subject||'', inboundBody: (body || inbound.snippet || ''), inboundDate: inbound.date||'' });
+  const payload = Object.assign(await buildLeadAIPayloadFull(deck), { inboundSubject: inbound.subject||'', inboundBody: (body || inbound.snippet || ''), inboundDate: inbound.date||'' });
   const r = await fetch(SUPABASE_URL + '/functions/v1/draft-reply', {
     method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
     body: JSON.stringify(payload)
