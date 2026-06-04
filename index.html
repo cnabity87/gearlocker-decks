@@ -1932,6 +1932,12 @@
   .email-attach-ic { display: inline-flex; color: var(--ink-4); }
   .email-attach-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink-2); padding: 4px 0; cursor: pointer; }
   .email-attach-row input { width: 15px; height: 15px; flex-shrink: 0; }
+  .email-attach-row.is-disabled { opacity: .5; cursor: not-allowed; }
+  .email-attach-warn { font-size: 12px; color: #b5651a; line-height: 1.5; margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--border); }
+  .email-attach-link { background: none; border: none; padding: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; color: var(--accent); }
+  .email-attach-link:hover { text-decoration: underline; }
+  .docs-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: #fff5ec; border: 1px solid #f3c89b; color: #8a4d12; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 13px; line-height: 1.45; }
+  .docs-banner button { flex-shrink: 0; }
   .email-status { font-size: 12.5px; color: var(--accent-dark); margin-top: 8px; min-height: 16px; }
   /* pricing settings */
   .setting-sec { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin: 24px 0 6px; }
@@ -2783,6 +2789,14 @@ function pickTier(enrollment) {
   const e = Number(enrollment) || 0;
   if (!e) return null;
   return SCHOOL_TIERS.find(t => e <= t.max) || SCHOOL_TIERS[SCHOOL_TIERS.length - 1];
+}
+// A presentation/proposal can only go out once the rep has run discovery: enrollment
+// (drives the pricing tier) and at least one program (drives the tailored numbers).
+function deckReadiness(deck){
+  const missing = [];
+  if (!(deck && deck.enrollment && Number(deck.enrollment) > 0)) missing.push('enrollment');
+  if (!(deck && Array.isArray(deck.sports) && deck.sports.length)) missing.push('programs');
+  return { ready: missing.length === 0, missing };
 }
 
 /* ---- Editable pricing (Settings panel) — flows into the deck + proposal ---- */
@@ -4336,8 +4350,11 @@ function paintLeadAI(deck, ovBody, nxBody){
   });
 }
 function docRow(o){
-  const actions = el('div',{class:'doc-actions'}, ...o.actions.map(a =>
-    el('button',{class:'btn sm'+(a.primary?' primary':''), type:'button', onClick:a.onClick}, a.label)));
+  const actions = el('div',{class:'doc-actions'}, ...o.actions.map(a => {
+    const b = el('button',{class:'btn sm'+(a.primary?' primary':''), type:'button', title:a.title||'', onClick: a.disabled?null:a.onClick}, a.label);
+    if (a.disabled) b.disabled = true;
+    return b;
+  }));
   return el('div',{class:'doc-row'},
     el('span',{class:'doc-ic', html:o.icon}),
     el('div',{class:'doc-body'}, el('div',{class:'doc-title'}, o.title), el('div',{class:'doc-sub'}, o.sub)),
@@ -4347,14 +4364,19 @@ function renderLeadDocuments(deck, content){
   const DECK_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m12 16-3 5"/><path d="m12 16 3 5"/></svg>';
   const DOC_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>';
   const card = el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Documents'));
+  const ready = deckReadiness(deck);
+  const tip = 'Finish the presentation first — missing ' + ready.missing.join(' and ');
+  if (!ready.ready) card.appendChild(el('div',{class:'docs-banner'},
+    el('span',{}, 'This presentation isn’t finished — add ' + ready.missing.join(' and ') + ' so the pricing and tailored numbers are complete before it goes out.'),
+    el('button',{class:'btn sm primary', type:'button', onClick:()=>openDeck(deck.id)}, 'Finish presentation')));
   const list = el('div',{class:'lead-docs'});
   list.appendChild(docRow({
     icon: DECK_IC,
     title: deck.school + ' — Sales presentation',
-    sub: 'Interactive slide deck, tailored to this school',
+    sub: ready.ready ? 'Interactive slide deck, tailored to this school' : 'Not finished — open it to add ' + ready.missing.join(' and '),
     actions: [
       { label:'Open', primary:true, onClick:()=>openDeck(deck.id) },
-      { label:'Download PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget) }
+      { label:'Download PDF', disabled:!ready.ready, title: ready.ready?'':tip, onClick:(e)=>downloadDeckPdf(deck, e.currentTarget) }
     ]
   }));
   list.appendChild(docRow({
@@ -4362,7 +4384,7 @@ function renderLeadDocuments(deck, content){
     title: deck.school + ' — Proposal',
     sub: 'PDF proposal with pricing and 30-day rollout plan',
     actions: [
-      { label:'Generate PDF', primary:true, onClick:(e)=>generateProposal(deck, e.currentTarget) }
+      { label:'Generate PDF', primary:true, disabled:!ready.ready, title: ready.ready?'':tip, onClick:(e)=>generateProposal(deck, e.currentTarget) }
     ]
   }));
   card.appendChild(list);
@@ -5409,9 +5431,10 @@ function openEmailModal(deck, opts){
   const toInput = el('input',{type:'email', value: deck.contactEmail || '', placeholder:'contact@school.org'});
   const subjInput = el('input',{type:'text', value: 'GearLocker for ' + deck.school});
   const bodyArea = el('textarea',{class:'email-body', rows:'13'}, plainEmailBody(deck, sp));
-  // attachments are opt-in — nothing attaches unless the rep ticks it
-  const attachDeckCb = el('input',{type:'checkbox'}); attachDeckCb.checked = !!opts.attachDeck;
-  const attachPropCb = el('input',{type:'checkbox'}); attachPropCb.checked = !!opts.attachProposal;
+  // attachments are opt-in — nothing attaches unless the rep ticks it, and only if the deck is complete
+  const ready = deckReadiness(deck);
+  const attachDeckCb = el('input',{type:'checkbox'}); attachDeckCb.checked = ready.ready && !!opts.attachDeck; attachDeckCb.disabled = !ready.ready;
+  const attachPropCb = el('input',{type:'checkbox'}); attachPropCb.checked = ready.ready && !!opts.attachProposal; attachPropCb.disabled = !ready.ready;
   const status = el('div',{class:'email-status'}, '');
   const sendBtn = el('button',{class:'btn primary'}, 'Send email');
   const set = t => { status.textContent = t; };
@@ -5422,7 +5445,8 @@ function openEmailModal(deck, opts){
     try {
       set('Connecting to Google…');
       const token = await getGoogleAccessToken();
-      const wantDeck = attachDeckCb.checked, wantProp = attachPropCb.checked;
+      const okReady = deckReadiness(DB.decks.find(d => d.id === deck.id) || deck).ready;
+      const wantDeck = okReady && attachDeckCb.checked, wantProp = okReady && attachPropCb.checked;
       const attachments = [];
       const slug = deck.school.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
       if (wantDeck){
@@ -5549,8 +5573,11 @@ function openEmailModal(deck, opts){
       el('div',{class:'email-attach-h'},
         el('span',{class:'email-attach-ic', html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'}),
         'Attach documents'),
-      el('label',{class:'email-attach-row'}, attachDeckCb, el('span',{},'Sales presentation (PDF)')),
-      el('label',{class:'email-attach-row'}, attachPropCb, el('span',{},'Proposal (PDF)'))),
+      el('label',{class:'email-attach-row'+(ready.ready?'':' is-disabled')}, attachDeckCb, el('span',{},'Sales presentation (PDF)')),
+      el('label',{class:'email-attach-row'+(ready.ready?'':' is-disabled')}, attachPropCb, el('span',{},'Proposal (PDF)')),
+      ready.ready ? null : el('div',{class:'email-attach-warn'},
+        'Finish the presentation before attaching — missing ' + ready.missing.join(' and ') + '. ',
+        el('button',{class:'email-attach-link', type:'button', onClick:()=>{ closeModal(); openDeck(deck.id); }}, 'Open the deck →'))),
     status,
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
