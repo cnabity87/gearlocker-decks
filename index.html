@@ -2306,8 +2306,31 @@
   .pl-tab-dot.stage-newlead{background:#b9b6b3}.pl-tab-dot.stage-demoscheduled{background:#1a56b0}.pl-tab-dot.stage-noshow{background:#c62b25}.pl-tab-dot.stage-democompleted{background:#3457b2}.pl-tab-dot.stage-verbalcommit{background:#b6781a}.pl-tab-dot.stage-closedwon{background:#1f9d55}.pl-tab-dot.stage-closedlost{background:#b9b6b3}
   .pl-tab-label { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.25; }
   .pl-tab-meta { font-size: 12px; color: var(--ink-4); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .pl-sort { display: inline-flex; align-items: center; gap: 4px; }
+  .pl-sort-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin-right: 4px; }
+  .pl-sort-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-3); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 11px; cursor: pointer; }
+  .pl-sort-btn:hover { border-color: var(--ink-3); }
+  .pl-sort-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  /* Deal health chips + card */
+  .health-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 2px 9px 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .hc-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .hc-hot  { color: #1f7d45; background: rgba(31,157,85,.13); }
+  .hc-ok   { color: #1a56b0; background: rgba(26,86,176,.12); }
+  .hc-cool { color: #b6781a; background: rgba(182,120,26,.15); }
+  .hc-risk { color: var(--accent-dark, #c2302b); background: rgba(238,54,47,.12); }
+  .hl-card .hl-top { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .hl-score { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hl-score.hc-hot { color: #1f7d45; } .hl-score.hc-ok { color: #1a56b0; } .hl-score.hc-cool { color: #b6781a; } .hl-score.hc-risk { color: var(--accent-dark, #c2302b); }
+  .hl-score-max { font-size: 14px; font-weight: 600; color: var(--ink-4); margin-left: 2px; }
+  .hl-meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .hl-bar { height: 7px; border-radius: 4px; background: var(--wash); overflow: hidden; }
+  .hl-bar-fill { display: block; height: 100%; border-radius: 4px; }
+  .hl-bar-fill.hc-hot { background: #1f9d55; } .hl-bar-fill.hc-ok { background: #1a56b0; } .hl-bar-fill.hc-cool { background: #b6781a; } .hl-bar-fill.hc-risk { background: var(--accent); }
+  .hl-factors { display: flex; flex-direction: column; gap: 6px; }
+  .hl-f { font-size: 13px; line-height: 1.35; }
+  .hl-f.good { color: var(--ink-2); } .hl-f.bad { color: var(--accent-dark, #c2302b); }
   .pl-list { display: flex; flex-direction: column; gap: 6px; }
-  .pl-row { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr) 110px 110px 150px; align-items: center; gap: 14px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .pl-row { display: grid; grid-template-columns: minmax(0,2fr) 124px minmax(0,1fr) 110px 110px 150px; align-items: center; gap: 14px; padding: 12px 16px; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }
   .pl-row-head { background: none; border: none; padding: 0 16px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); }
   .pl-deal { min-width: 0; cursor: pointer; }
   .pl-deal:hover .pl-school { color: var(--accent); }
@@ -3541,6 +3564,47 @@ function dealAmount(deck){
   return t ? t.annual : 0;
 }
 function dealNeedsNudge(deck){ if (!isOpenDeal(deck)) return false; if (hasUpcomingFollowup(deck)) return false; const q = daysQuiet(deck); return q != null && q >= nudgeThreshold(); }
+/* ---------- Deal health / risk radar — fast, transparent heuristic (no API; consistent + explainable) ---------- */
+function stageEnteredAt(deck, stage){ return (deck.stageDates && deck.stageDates[stage]) || null; }
+function dealHealth(deck){
+  if (!isOpenDeal(deck)) return null;                       // only score live deals
+  const stage = dealStage(deck);
+  const q = daysQuiet(deck);                                // days since last contact (null = never)
+  const inbound = (typeof deckLatestInbound === 'function') ? !!deckLatestInbound(deck) : false;
+  const booked = hasUpcomingFollowup(deck);
+  const grade = (deck.callGrade && deck.callGrade.overall != null) ? deck.callGrade.overall : null;
+  const ageDays = deck.createdAt ? Math.max(0, Math.floor((Date.now() - new Date(deck.createdAt).getTime())/86400000)) : 0;
+  const base = ({ newlead:45, demoscheduled:55, noshow:40, democompleted:62, verbalcommit:78 })[stage] || 45;
+  let score = base;
+  const pos = [], neg = [];
+  if (booked){ score += 16; pos.push('Follow-up booked'); }
+  if (inbound){ score += 12; pos.push('Prospect replied — waiting on you'); }
+  if (grade != null){ if (grade >= 80){ score += 8; pos.push('Strong demo call'); } else if (grade < 60){ score -= 8; neg.push('Weak demo call'); } }
+  if (q == null){ if (ageDays > 4){ score -= 12; neg.push('No contact logged yet'); } }
+  else if (q <= 3){ score += 8; pos.push('Touched in the last few days'); }
+  else if (q <= 10){ /* neutral */ }
+  else if (q <= 21){ score -= 14; neg.push(q + ' days quiet'); }
+  else if (q <= 45){ score -= 24; neg.push(q + ' days quiet'); }
+  else { score -= 36; neg.push(q + ' days quiet'); }
+  const lateStage = (stage === 'democompleted' || stage === 'verbalcommit');
+  const enteredAt = stageEnteredAt(deck, stage);
+  const stageAge = enteredAt ? Math.floor((Date.now() - new Date(enteredAt).getTime())/86400000) : ageDays;
+  if (lateStage && stageAge > 14){ score -= 10; neg.push('Stuck ' + stageAge + 'd at ' + stageMeta(stage).label); }
+  score = Math.max(3, Math.min(100, Math.round(score)));
+  // Label is driven by real decay signals, not just "early stage" — a fresh, freshly-touched lead is On track, not At risk.
+  let label, tone;
+  if (lateStage && q != null && q > 14){ label = 'At risk'; tone = 'risk'; }   // a demo'd / committed deal going quiet = the urgent bucket
+  else if (q != null && q > 30){ label = 'At risk'; tone = 'risk'; }            // gone dark, any stage
+  else if (inbound || score >= 70){ label = 'Hot'; tone = 'hot'; }
+  else if (score >= 50){ label = 'On track'; tone = 'ok'; }
+  else if (score >= 30){ label = 'Cooling'; tone = 'cool'; }
+  else { label = 'At risk'; tone = 'risk'; }
+  return { score, label, tone, pos, neg };
+}
+function healthChip(deck){
+  const h = dealHealth(deck); if (!h) return null;
+  return el('span',{class:'health-chip hc-'+h.tone, title:'Deal health ' + h.score + '/100 — ' + h.label}, el('span',{class:'hc-dot'}), h.label + ' · ' + h.score);
+}
 function followupChip(deck){
   const fu = deck.followup;
   if (hasUpcomingFollowup(deck)){
@@ -3599,6 +3663,7 @@ function deckRow(deck, team){
             el('span',{html:'<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 8"/></svg>'}), 'Emailed')
         : null,
       stageChip(deck),
+      healthChip(deck),
       deck.callGrade ? el('span',{class:'grade-chip', style:'background:' + gradeColor(deck.callGrade.overall), title:'Call grade ' + deck.callGrade.overall + '/100'}, deck.callGrade.grade) : null,
       followupChip(deck),
       deck.paidAt ? el('span',{class:'paid-badge', title:'Paid ' + fmtDate(deck.paidAt)}, 'Paid') : null,
@@ -4396,6 +4461,7 @@ function renderLeaderboard(){
 /* ---------- Pipeline (deals by stage) ---------- */
 function fmtUSD(n){ return '$' + Math.round(Number(n)||0).toLocaleString(); }
 let pipelineStage = null;
+let pipelineSort = 'value';   // 'value' (biggest $ first) | 'risk' (most at-risk first)
 function renderPipeline(){
   const body = document.getElementById('pipeline-body');
   body.innerHTML = '';
@@ -4406,11 +4472,18 @@ function renderPipeline(){
   const openVal = STAGES.filter(s => s.key!=='closedwon' && s.key!=='closedlost').reduce((a,s)=> a + byStage[s.key].amount, 0);
   const wonVal = byStage['closedwon'].amount;
 
+  // count of open deals flagged at-risk (for the radar)
+  const atRisk = decks.filter(d => { const h = dealHealth(d); return h && h.tone === 'risk'; }).length;
   body.appendChild(el('div',{class:'pl-headrow'},
     el('h1',{class:'lb-title'},'Pipeline'),
     el('div',{class:'pl-totals'},
       el('span',{}, el('span',{class:'pl-tot-lbl'},'Open pipeline '), el('span',{class:'pl-tot-val'}, fmtUSD(openVal))),
-      el('span',{}, el('span',{class:'pl-tot-lbl'},'Won '), el('span',{class:'pl-tot-val won'}, fmtUSD(wonVal))))
+      el('span',{}, el('span',{class:'pl-tot-lbl'},'Won '), el('span',{class:'pl-tot-val won'}, fmtUSD(wonVal))),
+      el('div',{class:'pl-sort'},
+        el('span',{class:'pl-sort-lbl'},'Sort'),
+        el('button',{class:'pl-sort-btn'+(pipelineSort==='value'?' active':''), type:'button', onClick:()=>{ pipelineSort='value'; renderPipeline(); }},'Value'),
+        el('button',{class:'pl-sort-btn'+(pipelineSort==='risk'?' active':''), type:'button', onClick:()=>{ pipelineSort='risk'; renderPipeline(); }}, 'Risk' + (atRisk?(' · '+atRisk):'')))
+    )
   ));
 
   const tabs = el('div',{class:'pl-tabs'});
@@ -4426,9 +4499,12 @@ function renderPipeline(){
 
   const sel = byStage[pipelineStage];
   const list = el('div',{class:'pl-list'});
-  list.appendChild(el('div',{class:'pl-row pl-row-head'}, el('div',{},'Deal'), el('div',{},'Owner'), el('div',{},'Amount'), el('div',{},'Last touch'), el('div',{},'Move to')));
+  list.appendChild(el('div',{class:'pl-row pl-row-head'}, el('div',{},'Deal'), el('div',{},'Health'), el('div',{},'Owner'), el('div',{},'Amount'), el('div',{},'Last touch'), el('div',{},'Move to')));
   if (!sel.decks.length){ list.appendChild(el('div',{class:'pl-empty'}, 'No deals in ' + stageMeta(pipelineStage).label + '.')); }
-  sel.decks.slice().sort((a,b)=> dealAmount(b) - dealAmount(a)).forEach(d => {
+  const sorted = sel.decks.slice().sort((a,b)=> pipelineSort === 'risk'
+    ? ((dealHealth(a)||{score:999}).score - (dealHealth(b)||{score:999}).score)   // worst health first
+    : (dealAmount(b) - dealAmount(a)));
+  sorted.forEach(d => {
     const sp = team.find(p=>p.id===d.salespersonId);
     const contact = [d.contactFirst, d.contactLast].filter(Boolean).join(' ');
     const mover = el('select',{class:'pl-move'}, ...STAGES.map(s=>el('option',{value:s.key}, s.short)));
@@ -4439,6 +4515,7 @@ function renderPipeline(){
       el('div',{class:'pl-deal', onClick:()=>openLead(d, 'pipeline')},
         el('div',{class:'pl-school'}, d.school),
         el('div',{class:'pl-contact'}, contact || d.contactEmail || '—')),
+      el('div',{class:'pl-cell'}, healthChip(d) || el('span',{class:'muted'},'—')),
       el('div',{class:'pl-cell'}, sp ? sp.name : el('span',{class:'muted'},'—')),
       el('div',{class:'pl-cell num'}, fmtUSD(dealAmount(d))),
       el('div',{class:'pl-cell'}, lt ? fmtDay(lt) : '—'),
@@ -4796,7 +4873,7 @@ function renderLead(deck){
     el('div',{class:'lead-head-l'},
       el('div',{class:'lead-avatar'}, String(deck.school||'?').trim().slice(0,1).toUpperCase()),
       el('div',{}, el('h1',{class:'lead-title'}, deck.school), el('div',{class:'lead-sub'}, contact || deck.contactEmail || ''))),
-    el('div',{class:'lead-head-right'}, el('span',{class:'stage-chip stage-' + dealStage(deck)}, stageMeta(dealStage(deck)).short), stageSel)
+    el('div',{class:'lead-head-right'}, healthChip(deck), el('span',{class:'stage-chip stage-' + dealStage(deck)}, stageMeta(dealStage(deck)).short), stageSel)
   ));
   // quick actions (log to timeline)
   const compToggle = m => { state.leadComposer = state.leadComposer===m ? null : m; renderLead(deck); };
@@ -4867,7 +4944,23 @@ function renderLeadOverview(deck, content, sp, contact){
       el('button',{class:'lead-viewall', type:'button', onClick:()=>{ state.leadTab='timeline'; renderLead(deck); }},'View full timeline →')));
   const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
   fillTimeline(mini, deck, { limit:5, expandable:false });
-  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, ovCard, nxCard, actCard)));
+  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, leadHealthCard(deck), ovCard, nxCard, actCard)));
+}
+function leadHealthCard(deck){
+  const h = dealHealth(deck);
+  if (!h) return el('div',{class:'lead-card'}, el('div',{class:'lead-card-h'},'Deal health'), el('div',{class:'muted', style:'font-size:13px'}, 'This deal is closed — no active health score.'));
+  const card = el('div',{class:'lead-card hl-card'}, el('div',{class:'lead-card-h'},'Deal health'));
+  card.appendChild(el('div',{class:'hl-top'},
+    el('div',{class:'hl-score hc-'+h.tone}, String(h.score), el('span',{class:'hl-score-max'},'/100')),
+    el('div',{class:'hl-meta'},
+      el('span',{class:'health-chip hc-'+h.tone}, el('span',{class:'hc-dot'}), h.label),
+      el('div',{class:'hl-bar'}, el('div',{class:'hl-bar-fill hc-'+h.tone, style:'width:'+h.score+'%'})))));
+  const factors = el('div',{class:'hl-factors'});
+  h.pos.forEach(f => factors.appendChild(el('div',{class:'hl-f good'}, '↑ ' + f)));
+  h.neg.forEach(f => factors.appendChild(el('div',{class:'hl-f bad'}, '↓ ' + f)));
+  if (!h.pos.length && !h.neg.length) factors.appendChild(el('div',{class:'muted', style:'font-size:13px'}, 'Not enough signal yet — log activity to sharpen this.'));
+  card.appendChild(factors);
+  return card;
 }
 // Sequence enrollment card for a lead (enroll / status / controls).
 // Editable deal milestones + paid status — the source of truth for the dashboard's dated metrics.
@@ -5074,6 +5167,8 @@ function briefingCandidates(){
     if (fuToday) score += 60;
     if (nudge) score += Math.min(45, (daysQuiet(d)||0));
     score += ({verbalcommit:28, democompleted:18, noshow:16, demoscheduled:12, newlead:5})[dealStage(d)] || 0;
+    const health = dealHealth(d);
+    if (health && health.tone === 'risk') score += 30;   // at-risk deals bubble up in the morning briefing
     if (!score) return;
     out.push({ deck:d, inbound, tasksDue, fuToday, nudge, score });
   });
