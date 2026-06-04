@@ -1927,8 +1927,11 @@
   .btn.sm.is-sent:hover { border-color: var(--success); }
   .email-body { width: 100%; box-sizing: border-box; font: inherit; font-size: 13.5px; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; color: var(--ink); resize: vertical; min-height: 200px; }
   .email-body:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(30,23,21,.08); }
-  .email-attach { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 4px; }
-  .email-attach svg { color: var(--ink-4); flex-shrink: 0; }
+  .email-attach { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; margin-top: 4px; }
+  .email-attach-h { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-4); margin-bottom: 8px; }
+  .email-attach-ic { display: inline-flex; color: var(--ink-4); }
+  .email-attach-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink-2); padding: 4px 0; cursor: pointer; }
+  .email-attach-row input { width: 15px; height: 15px; flex-shrink: 0; }
   .email-status { font-size: 12.5px; color: var(--accent-dark); margin-top: 8px; min-height: 16px; }
   /* pricing settings */
   .setting-sec { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-4); margin: 24px 0 6px; }
@@ -3117,7 +3120,7 @@ function deckRow(deck, team){
     el('div',{class:'deck-row-actions'},
       el('button',{class:'btn sm primary', onClick:()=>openDeck(deck.id)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'}), 'View'),
-      el('button',{class:'btn ghost sm' + (deck.emailedAt?' is-sent':''), 'data-tip': deck.emailedAt ? 'Emailed — click to resend' : 'Email the deck + proposal', onClick:()=>openEmailModal(deck)},
+      el('button',{class:'btn ghost sm' + (deck.emailedAt?' is-sent':''), 'data-tip': deck.emailedAt ? 'Emailed — click to email again' : 'Email the contact', onClick:()=>openEmailModal(deck)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 6-10 7L2 6"/></svg>'})),
       el('button',{class:'btn ghost sm', 'data-tip':'Download deck PDF', onClick:(e)=>downloadDeckPdf(deck, e.currentTarget)},
         el('span',{html:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>'})),
@@ -4365,7 +4368,7 @@ function renderLeadDocuments(deck, content){
   card.appendChild(list);
   card.appendChild(el('div',{class:'lead-docs-foot'},
     el('span',{class:'lead-tl-sub'}, deck.emailedAt ? ('Last emailed ' + fmtDay(deck.emailedAt)) : 'Not emailed yet'),
-    el('button',{class:'btn sm', type:'button', onClick:()=>openEmailModal(deck)}, deck.emailedAt ? 'Resend deck + proposal' : 'Email deck + proposal')));
+    el('button',{class:'btn sm', type:'button', onClick:()=>openEmailModal(deck)}, 'Email contact')));
   content.appendChild(card);
 }
 function leadComposer(deck){
@@ -5401,12 +5404,14 @@ function openEmailPreview(opts){
 }
 function openEmailModal(deck, opts){
   opts = opts || {};
-  const attach = opts.attach !== false;   // default: attach deck + proposal; pass {attach:false} for a plain email
   closeModal();
   const sp = getTeam().find(p => p.id === deck.salespersonId) || null;
   const toInput = el('input',{type:'email', value: deck.contactEmail || '', placeholder:'contact@school.org'});
   const subjInput = el('input',{type:'text', value: 'GearLocker for ' + deck.school});
-  const bodyArea = el('textarea',{class:'email-body', rows:'13'}, attach ? defaultEmailBody(deck, sp) : plainEmailBody(deck, sp));
+  const bodyArea = el('textarea',{class:'email-body', rows:'13'}, plainEmailBody(deck, sp));
+  // attachments are opt-in — nothing attaches unless the rep ticks it
+  const attachDeckCb = el('input',{type:'checkbox'}); attachDeckCb.checked = !!opts.attachDeck;
+  const attachPropCb = el('input',{type:'checkbox'}); attachPropCb.checked = !!opts.attachProposal;
   const status = el('div',{class:'email-status'}, '');
   const sendBtn = el('button',{class:'btn primary'}, 'Send email');
   const set = t => { status.textContent = t; };
@@ -5417,24 +5422,25 @@ function openEmailModal(deck, opts){
     try {
       set('Connecting to Google…');
       const token = await getGoogleAccessToken();
-      let attachments = [];
-      if (attach){
+      const wantDeck = attachDeckCb.checked, wantProp = attachPropCb.checked;
+      const attachments = [];
+      const slug = deck.school.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
+      if (wantDeck){
         const prev = { d: state.d, lossPct: state.lossPct };
         state.d = { leadName: deck.school, enrollment: deck.enrollment || '', sports: (deck.sports||[]).slice(),
           checksTech: deck.checksTech != null ? deck.checksTech : null, sis: deck.sis || '', salesperson: sp };
         state.lossPct = deck.lossPct != null ? deck.lossPct : 10;
-        let deckPdf, propPdf;
+        let deckPdf;
         try {
-          set('Building the deck PDF…');
+          set('Building the presentation PDF…');
           deckPdf = await composeSlidesPdf(set);
         } finally { state.d = prev.d; state.lossPct = prev.lossPct; }
+        attachments.push({ filename: slug + '-presentation.pdf', base64: deckPdf.output('datauristring').split('base64,')[1] });
+      }
+      if (wantProp){
         set('Building the proposal PDF…');
-        propPdf = await composeProposalPdf(deck, set);
-        const slug = deck.school.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'');
-        attachments = [
-          { filename: slug + '-presentation.pdf', base64: deckPdf.output('datauristring').split('base64,')[1] },
-          { filename: slug + '-proposal.pdf', base64: propPdf.output('datauristring').split('base64,')[1] }
-        ];
+        const propPdf = await composeProposalPdf(deck, set);
+        attachments.push({ filename: slug + '-proposal.pdf', base64: propPdf.output('datauristring').split('base64,')[1] });
       }
       set('Sending…');
       const html = composeEmailHtml(bodyArea.value, sp, false);
@@ -5450,7 +5456,7 @@ function openEmailModal(deck, opts){
       const cur = DB.decks.find(d => d.id === deck.id) || deck;
       const now = new Date().toISOString();
       const patch = { contactEmail: to, lastEmailAt: now, updatedAt: now };
-      if (attach) patch.emailedAt = now;   // only the deck+proposal send marks the "deck sent" milestone
+      if (wantDeck) patch.emailedAt = now;   // attaching the presentation marks the "deck sent" milestone
       upsertDeck(Object.assign({}, cur, patch));
       closeModal();
       if (state.view==='lead' && state.leadId===cur.id) renderLead(cur); else renderDashboard();
@@ -5532,7 +5538,7 @@ function openEmailModal(deck, opts){
   });
   const body = el('div',{},
     el('div',{class:'modal-h'},'Email the prospect'),
-    el('div',{class:'modal-desc'},'Review and send it from your Gmail. The presentation and proposal attach automatically.'),
+    el('div',{class:'modal-desc'},'Review and send it from your Gmail. Attachments are optional — your signature is added automatically.'),
     el('div',{class:'field'}, el('label',{},'To'), toInput),
     el('div',{class:'field'}, el('label',{},'Subject'), subjInput),
     recNote,
@@ -5540,8 +5546,11 @@ function openEmailModal(deck, opts){
       el('div',{class:'field-head'}, el('label',{},'Message'), el('div',{class:'field-head-btns'}, suggestBtn, personalizeBtn)),
       bodyArea),
     el('div',{class:'email-attach'},
-      el('span',{html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'}),
-      'Attaching the presentation PDF and proposal PDF · your GearLocker signature (logo + contact) is added automatically'),
+      el('div',{class:'email-attach-h'},
+        el('span',{class:'email-attach-ic', html:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'}),
+        'Attach documents'),
+      el('label',{class:'email-attach-row'}, attachDeckCb, el('span',{},'Sales presentation (PDF)')),
+      el('label',{class:'email-attach-row'}, attachPropCb, el('span',{},'Proposal (PDF)'))),
     status,
     el('div',{class:'modal-foot'},
       el('button',{class:'btn', onClick:closeModal},'Cancel'),
