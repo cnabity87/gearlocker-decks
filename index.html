@@ -732,6 +732,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
+  .avatar.avatar-logo { background: #fff; object-fit: contain; padding: 3px; border: 1px solid var(--border); }
   .testimonial-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
   .testimonial-role { font-size: 11px; color: var(--ink-4); }
   .feature-quote {
@@ -754,6 +755,7 @@
     color: #fff;
     margin-bottom: 14px;
   }
+  .school-badge.school-badge-logo { background: #fff; object-fit: contain; padding: 6px; }
 
   /* ---------- Case study ---------- */
   .case-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; }
@@ -3244,13 +3246,13 @@ const LOSS_PRESETS = [
 ];
 const TESTIMONIALS = [
   { quote: "GearLocker makes it easy to manage across different sites, tournaments, and seasons. It's the most consistent tool we've adopted.",
-    name: "Jake Oertle", role: "Wrestling Coach, Kearney HS", initials: "JO" },
+    name: "Jake Oertle", role: "Wrestling Coach, Kearney HS", initials: "JO", logo: "assets/slides/logo-kearney.png" },
   { quote: "The interface was simple and straightforward, making it quick to locate the items we needed. Checking out softball equipment took just a few clicks.",
-    name: "Mike Leapley", role: "Girls Softball Coach, Westside HS", initials: "ML" },
+    name: "Mike Leapley", role: "Girls Softball Coach, Westside HS", initials: "ML", logo: "assets/slides/logo-westside.png" },
   { quote: "We finally have a consistent system that works across all our teams. GearLocker scaled with us and simplified everything.",
-    name: "Zach Limbach", role: "Athletic Director, Lincoln East HS", initials: "ZL" },
+    name: "Zach Limbach", role: "Athletic Director, Lincoln East HS", initials: "ZL", logo: "assets/slides/logo-lincolneast.png" },
   { quote: "Every piece of gear is tracked and accounted for. GearLocker helped us stay organized from day one of the season.",
-    name: "Jeff Rutledge", role: "Wrestling Coach, Lincoln East HS", initials: "JR" },
+    name: "Jeff Rutledge", role: "Wrestling Coach, Lincoln East HS", initials: "JR", logo: "assets/slides/logo-lincolneast.png" },
 ];
 /* ---------------------------------------------------------------------
    Sport profiles — model used by the Discovery Report slide.
@@ -9778,7 +9780,7 @@ function buildTestimonials() {
       el('h2', {class:'h1 tight'}, 'Easy for coaches.', el('br'), 'Loved by administrators.'),
       el('div', {class:'testimonial-grid', style:'margin-top:48px'},
         el('div', {class:'feature-quote'},
-          el('div', {class:'school-badge'}, 'K'),
+          el('img', {class:'school-badge school-badge-logo', src:'assets/slides/logo-kearney.png', alt:'Kearney HS'}),
           el('div', {},
             el('div', {class:'quote'}, 'GearLocker helped Kearney Wrestling create a culture of accountability — one singlet at a time.'),
             el('div', {class:'read-more'}, 'Read full case study →')
@@ -9787,7 +9789,7 @@ function buildTestimonials() {
         testimonialCard(TESTIMONIALS[0]),
         testimonialCard(TESTIMONIALS[1]),
         el('div', {class:'feature-quote red'},
-          el('div', {class:'school-badge'}, 'W'),
+          el('img', {class:'school-badge school-badge-logo', src:'assets/slides/logo-westside.png', alt:'Westside HS'}),
           el('div', {},
             el('div', {class:'quote'}, 'GearLocker gave Westside coaches their time — and peace of mind — back.'),
             el('div', {class:'read-more'}, 'Read full case study →')
@@ -9803,7 +9805,7 @@ function testimonialCard(t) {
   return el('div', {class:'testimonial-card'},
     el('div', {class:'quote'}, '"' + t.quote + '"'),
     el('div', {class:'testimonial-meta'},
-      el('div', {class:'avatar'}, t.initials),
+      t.logo ? el('img', {class:'avatar avatar-logo', src:t.logo, alt:'', loading:'lazy'}) : el('div', {class:'avatar'}, t.initials),
       el('div', {},
         el('div', {class:'testimonial-name'}, t.name),
         el('div', {class:'testimonial-role'}, t.role)
