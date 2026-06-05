@@ -1817,6 +1817,20 @@
   .reeng-card-actions { display:flex; gap:8px; flex-shrink:0; }
   .nudge-reeng { font-size:11.5px; font-weight:600; color:var(--accent-soft-text); background:var(--accent-soft); border-radius:6px; padding:3px 8px; margin-top:6px; display:inline-flex; align-items:center; gap:5px; }
 
+  /* AI lead research card */
+  .research-summary { font-size:13px; color:var(--ink-2); line-height:1.5; margin:10px 0 12px; }
+  .research-facts { display:flex; flex-direction:column; gap:7px; }
+  .research-fact { display:flex; align-items:baseline; gap:10px; font-size:13px; }
+  .research-fact .rf-k { flex:0 0 88px; color:var(--ink-4); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+  .research-fact .rf-v { color:var(--ink); font-weight:500; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .rf-conf { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; border-radius:5px; padding:1px 5px; line-height:1.5; }
+  .rf-high { background:#dcfce7; color:#15803d; } .rf-medium { background:#fef3c7; color:#b45309; } .rf-low { background:#f1f5f9; color:#64748b; }
+  .research-links { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
+  .research-link { font-size:12.5px; font-weight:600; color:var(--accent); text-decoration:none; }
+  .research-srccount { font-size:12px; color:var(--ink-4); cursor:help; border-bottom:1px dotted var(--border); }
+  .research-when { font-size:11.5px; color:var(--ink-4); margin-left:auto; }
+  .research-filled { font-size:11.5px; color:#15803d; background:#f0fdf4; border-radius:7px; padding:6px 10px; margin-top:10px; }
+
   /* dashboard parity: KPI deltas, gran toggle, loss bars, forecast-vs-plan */
   .kpi-d { display:block; margin-top:6px; font-size:11px; font-weight:600; line-height:1.2; }
   .kpi-d.up { color:#16a34a; } .kpi-d.down { color:#dc2626; } .kpi-d.flat { color:var(--ink-4); }
@@ -4201,6 +4215,7 @@ function createDeck(o){
     contactFirst: o.contactFirst || '', contactLast: o.contactLast || '', contactEmail: o.contactEmail || '',
     stage: 'newlead', leadSource: (sourceNames()[0] || 'Cold outreach'), leadSubSource:'', createdAt: now, updatedAt: now, enrollment:'', sports:[], lossPct:10, checksTech:null, sis:'' };
   upsertDeck(deck);
+  if (AUTOMATION.autoAi !== false && SUPABASE_URL) setTimeout(()=>enrichLeadFor(deck, {toast:false}), 800);   // research the new lead in the background
   closeModal();
   openDeckTab(deck.id);
 }
@@ -5509,7 +5524,7 @@ function renderLeadOverview(deck, content, sp, contact){
   const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
   fillTimeline(mini, deck, { limit:5, expandable:false });
   const banner = reEngageBanner(deck); if (banner) content.appendChild(banner);   // social-proof re-engage prompt
-  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, leadHealthCard(deck), ovCard, nxCard, actCard)));
+  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, leadHealthCard(deck), leadResearchCard(deck), ovCard, nxCard, actCard)));
 }
 function leadHealthCard(deck){
   const h = dealHealth(deck);
@@ -7255,6 +7270,80 @@ function leadStateSelect(deck){
   const ai = el('button',{class:'lead-state-ai', type:'button', title:'Infer the state from the school name'}, deckState(deck)?'↻':'AI guess');
   ai.addEventListener('click', ()=>{ ai.disabled=true; ai.textContent='…'; inferStateFor(deck).then(r=>{ const cur=DB.decks.find(x=>x.id===deck.id)||deck; if(r&&r.stateCode){ saveDeckPatch(cur,{state:r.stateCode, stateInferred:true, stateMiss:''}); if(state.view==='lead'&&state.leadId===deck.id) renderLead(DB.decks.find(x=>x.id===deck.id)); } else { ai.textContent='?'; ai.disabled=false; setTimeout(()=>{ai.textContent=deckState(deck)?'↻':'AI guess';},1500);} }).catch(()=>{ai.textContent=deckState(deck)?'↻':'AI guess';ai.disabled=false;}); });
   return el('div',{class:'lead-state-row'}, sel, deck.stateInferred?el('span',{class:'lead-state-tag', title:'AI-inferred — confirm or correct'},'AI'):null, ai);
+}
+
+/* ---------- AI lead research / enrichment (web search) ----------
+   An agent researches a new lead's school online and fills EMPTY fields only
+   (never overwrites a human value); the full cited result is stored in
+   deck.research and shown in a review card. Auto-fires on lead create; reps can
+   also trigger it from the lead page. */
+const _enrichInFlight = new Set();
+function applyResearch(deck, r){
+  const cur = DB.decks.find(x=>x.id===deck.id) || deck;
+  const patch = {}, filled = [];
+  const enrNum = parseInt(String(r.enrollment||'').replace(/[^0-9]/g,''), 10);
+  const enrOk = (r.confidence && r.confidence.enrollment && r.confidence.enrollment!=='low');
+  if ((!cur.enrollment || Number(cur.enrollment)<=0) && enrNum>0 && enrOk){ patch.enrollment = enrNum; patch.enrollmentInferred = true; filled.push('enrollment'); }
+  if (!deckState(cur) && r.state){ patch.state = r.state; patch.stateInferred = true; patch.stateMiss = ''; filled.push('state'); }
+  if ((!Array.isArray(cur.sports) || !cur.sports.length) && Array.isArray(r.sports) && r.sports.length){ patch.sports = r.sports.slice(0,30); patch.sportsInferred = true; filled.push('sports'); }
+  patch.research = {
+    canonicalName:r.canonicalName||'', city:r.city||'', state:r.state||'', district:r.district||'',
+    level:r.level||'', schoolType:r.schoolType||'', enrollment:r.enrollment||'',
+    sports:Array.isArray(r.sports)?r.sports:[], athleticDirector:(r.athleticDirector||{name:'',email:'',phone:''}),
+    website:r.website||'', confidence:(r.confidence||{}), sources:(Array.isArray(r.sources)?r.sources:[]),
+    summary:r.summary||'', fetchedAt:new Date().toISOString(), filled:filled
+  };
+  patch.enrichDone = true;
+  saveDeckPatch(cur, patch);
+  return filled;
+}
+async function enrichLeadFor(deck, opts){
+  opts = opts || {};
+  if (!SUPABASE_URL) return null;
+  const cur = DB.decks.find(x=>x.id===deck.id) || deck;
+  if (!cur.school || _enrichInFlight.has(cur.id)) return null;
+  _enrichInFlight.add(cur.id);
+  if (state.view==='lead' && state.leadId===cur.id) renderLead(cur);   // repaint to show the "researching…" state
+  const notes = deckActivities(cur).filter(a=>a.type==='note'||a.type==='call').slice(-3).map(a=>a.text).join(' ');
+  const cityHint = (cur.research && cur.research.city) || '';
+  try {
+    const r = await fetch(SUPABASE_URL+'/functions/v1/enrich-lead', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ school:cur.school, contactEmail:cur.contactEmail||'', city:cityHint, notes:notes }) });
+    const data = await r.json().catch(()=>({})); if (!r.ok) throw new Error(data.error||('Error '+r.status));
+    const filled = applyResearch(cur, data);
+    if (opts.toast!==false && typeof showToast==='function') showToast(filled.length ? ('Researched ' + cur.school + ' — filled ' + filled.join(', ')) : ('Researched ' + cur.school));
+    return data;
+  } catch(e){ if (opts.toast!==false && typeof showToast==='function') showToast('Research failed: ' + e.message); return null; }
+  finally { _enrichInFlight.delete(cur.id); if (state.view==='lead' && state.leadId===cur.id){ const c2=DB.decks.find(x=>x.id===cur.id); if(c2) renderLead(c2); } }
+}
+function leadResearchCard(deck){
+  const card = el('div',{class:'lead-card research-card'});
+  const busy = _enrichInFlight.has(deck.id);
+  const rs = deck.research;
+  card.appendChild(el('div',{class:'lead-card-h lead-card-h-row'}, el('span',{},'AI research'),
+    el('button',{class:'lead-viewall', type:'button', disabled:busy?'':null, onClick:()=>enrichLeadFor(deck,{force:true})}, busy?'Researching…':(rs?'Re-run':'Research lead'))));
+  if (!SUPABASE_URL){ card.appendChild(el('div',{class:'muted', style:'font-size:13px'}, 'Connect the cloud to research leads.')); return card; }
+  if (busy && !rs){ card.appendChild(el('div',{class:'lead-empty', style:'padding:6px 0'}, 'Searching the web for this school…')); return card; }
+  if (!rs){ card.appendChild(el('div',{class:'lead-empty', style:'padding:6px 0'}, 'Look this school up online — enrollment, district, sports, and the AD’s contact.')); return card; }
+  if (rs.summary) card.appendChild(el('div',{class:'research-summary'}, rs.summary));
+  const facts = el('div',{class:'research-facts'});
+  const conf = k => (rs.confidence && rs.confidence[k]) || '';
+  const factRow = (k, v, c) => { if(!v) return; facts.appendChild(el('div',{class:'research-fact'}, el('span',{class:'rf-k'}, k), el('span',{class:'rf-v'}, String(v), (c?el('span',{class:'rf-conf rf-'+c, title:'AI confidence'}, c):null)))); };
+  const enrN = parseInt(String(rs.enrollment||'').replace(/[^0-9]/g,''),10);
+  factRow('Enrollment', enrN>0?fmtNum(enrN):'', conf('enrollment'));
+  factRow('Location', [rs.city, rs.state].filter(Boolean).join(', '), conf('state'));
+  factRow('District', rs.district);
+  factRow('Type', [rs.level, rs.schoolType].filter(Boolean).join(' · '));
+  const ad = rs.athleticDirector || {};
+  factRow('Athletic Dir.', [ad.name, ad.email, ad.phone].filter(Boolean).join('  ·  '), conf('athleticDirector'));
+  if (Array.isArray(rs.sports) && rs.sports.length) factRow('Sports', rs.sports.length + ' programs · ' + rs.sports.slice(0,8).join(', ') + (rs.sports.length>8?'…':''));
+  card.appendChild(facts);
+  const links = el('div',{class:'research-links'});
+  if (rs.website) links.appendChild(el('a',{href:rs.website, target:'_blank', rel:'noopener', class:'research-link'}, 'Website ↗'));
+  if (Array.isArray(rs.sources) && rs.sources.length) links.appendChild(el('span',{class:'research-srccount', title:rs.sources.join('\n')}, rs.sources.length + ' sources'));
+  if (rs.fetchedAt) links.appendChild(el('span',{class:'research-when'}, 'Researched ' + fmtDay(rs.fetchedAt)));
+  card.appendChild(links);
+  if (Array.isArray(rs.filled) && rs.filled.length) card.appendChild(el('div',{class:'research-filled'}, '✓ Auto-filled empty fields: ' + rs.filled.join(', ')));
+  return card;
 }
 async function openReEngageDraft(leadId, winnerId){
   const lead = DB.decks.find(x=>x.id===leadId), winner = DB.decks.find(x=>x.id===winnerId);
