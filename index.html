@@ -1870,6 +1870,22 @@
   .fc-plan-row.hl b { font-size:15px; }
   .fc-cov.ok, .fc-cov.met { color:#16a34a !important; } .fc-cov.watch { color:#d97706 !important; } .fc-cov.short { color:#dc2626 !important; }
 
+  /* AI "story this week" summary card */
+  .dai-card { background:linear-gradient(180deg, #fff 0%, var(--surface) 100%); border:1px solid var(--border); }
+  .dai-body { margin-top:4px; }
+  .dai-empty { font-size:13.5px; color:var(--ink-4); padding:10px 2px; }
+  .dai-loading { font-size:13.5px; color:var(--ink-3); padding:10px 2px; }
+  .dai-loading::after { content:'…'; animation:dai-dots 1.2s steps(4) infinite; }
+  @keyframes dai-dots { 0%{opacity:.3} 50%{opacity:1} 100%{opacity:.3} }
+  .dai-err { font-size:13px; color:#dc2626; padding:10px 2px; }
+  .dai-headline { font-size:18px; font-weight:600; letter-spacing:-.01em; color:var(--ink); line-height:1.35; margin:6px 0 14px; }
+  .dai-insights { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:9px; }
+  .dai-i { position:relative; padding-left:20px; font-size:14px; line-height:1.5; color:var(--ink-2); }
+  .dai-i::before { content:''; position:absolute; left:2px; top:7px; width:8px; height:8px; border-radius:50%; background:var(--ink-4); }
+  .dai-i.dai-good::before { background:#16a34a; } .dai-i.dai-bad::before { background:#dc2626; } .dai-i.dai-watch::before { background:#d97706; } .dai-i.dai-neutral::before { background:var(--ink-4); }
+  .dai-focus { margin-top:16px; padding:12px 15px; background:var(--accent-soft); border-radius:12px; font-size:13.5px; line-height:1.5; color:var(--accent-soft-text); }
+  .dai-focus b { color:var(--ink); }
+
   .rep-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
   .rep-kpi { border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
   .rep-kpi.hl { background:var(--ink); border-color:var(--ink); }
@@ -6504,6 +6520,86 @@ function metricsRepSelect(){
   sel.addEventListener('change', ()=>{ state.metricsRep = sel.value; renderMetrics(); });
   return sel;
 }
+// --- AI "story this week": gather a compact snapshot of the current dashboard window ---
+function dashSummaryKey(){ return (state.metricsRange||'6m')+'|'+metricsGran()+'|'+(state.metricsRep||'all'); }
+function dashSnapshot(){
+  const team=getTeam();
+  const repId=(state.metricsRep && state.metricsRep!=='all')?state.metricsRep:null;
+  const decks=repId?getDecks().filter(d=>d.salespersonId===repId):getDecks();
+  const months=metricsMonths();
+  const mset=new Set(months.map(m=>m.key));
+  const inR=dt=>dt && mset.has(bucketKeyOf(dt));
+  const curStartT=months.length?bucketStartDate(months[0].key).getTime():Date.now();
+  const prevStartT=curStartT-Math.max(1,Date.now()-curStartT);
+  const prevInR=dt=>{ if(!dt) return false; const t=parseDay(dt).getTime(); return t>=prevStartT && t<curStartT; };
+  const leads=decks.filter(d=>inR(d.createdAt)), demos=decks.filter(d=>inR(demoDate(d))), commits=decks.filter(d=>inR(committedDate(d)));
+  const won=decks.filter(d=>inR(closedWonDate(d))), lost=decks.filter(d=>inR(lostDate(d)));
+  const wonAmt=won.reduce((a,d)=>a+dealAmount(d),0);
+  const open=decks.filter(isOpenDeal), openAmt=open.reduce((a,d)=>a+dealAmount(d),0);
+  const weighted=open.reduce((a,d)=>a+dealAmount(d)*(STAGE_PROB[dealStage(d)]||0),0);
+  const winRate=(won.length+lost.length)?Math.round(100*won.length/(won.length+lost.length)):null;
+  const pv=fn=>decks.filter(d=>prevInR(fn(d))).length;
+  const srcMap={}; decks.forEach(d=>{ const k=(d.leadSource||'').trim()||'Unspecified'; const m=srcMap[k]||(srcMap[k]={k,leads:0,won:0,wonAmt:0,lost:0,open:0}); if(inR(d.createdAt))m.leads++; if(inR(closedWonDate(d)))m.wonAmt+=dealAmount(d); const s=dealStage(d); if(s==='closedwon')m.won++; else if(s==='closedlost')m.lost++; if(isOpenDeal(d))m.open+=dealAmount(d); });
+  const sources=Object.keys(srcMap).map(k=>srcMap[k]).map(m=>({source:m.k, leadsInWindow:m.leads, wonAmount:m.wonAmt, winRatePct:(m.won+m.lost)?Math.round(100*m.won/(m.won+m.lost)):null, openPipeline:m.open})).sort((a,b)=>(b.wonAmount+b.openPipeline)-(a.wonAmount+a.openPipeline)).slice(0,5);
+  const thr=nudgeThreshold(); const quiet=open.map(d=>({amt:dealAmount(d),q:daysQuiet(d)})).filter(x=>x.q!=null&&x.q>=thr);
+  const lossTally={}; decks.filter(d=>dealStage(d)==='closedlost').forEach(d=>{ const r=(d.lostReason||'').trim()||'Unspecified'; lossTally[r]=(lossTally[r]||0)+1; });
+  const lossReasons=Object.keys(lossTally).map(k=>({reason:k,count:lossTally[k]})).sort((a,b)=>b.count-a.count).slice(0,5);
+  const mk=new Date().toISOString().slice(0,7), inMonth=dt=>dt && String(dt).slice(0,7)===mk;
+  const goalsMTD={
+    leads:{actual:decks.filter(d=>inMonth(d.createdAt)).length, target:Number(GOALS.leads)||0},
+    demos:{actual:decks.filter(d=>inMonth(demoDate(d))).length, target:Number(GOALS.demos)||0},
+    salesRevenue:{actual:decks.filter(d=>inMonth(closedWonDate(d))).reduce((a,d)=>a+dealAmount(d),0), target:Number(GOALS.sales)||0}
+  };
+  return {
+    window: (months[0]?months[0].label:'') + ' – ' + (months.length?months[months.length-1].label:'') + ' (by ' + metricsGran() + ')',
+    scope: repId ? ((team.find(p=>p.id===repId)||{}).name||'a rep') : 'the whole team',
+    kpisThisWindow:{ newLeads:leads.length, demos:demos.length, verbalCommits:commits.length, dealsWon:won.length, revenueWon:wonAmt, winRatePct:winRate, openPipeline:openAmt, weightedForecast:Math.round(weighted) },
+    vsPriorWindow:{ newLeads:pv(d=>d.createdAt), demos:pv(demoDate), verbalCommits:pv(committedDate), dealsWon:pv(closedWonDate) },
+    monthToDateGoals:goalsMTD,
+    bySource:sources,
+    pipelineAtRisk:{ totalDollars:quiet.reduce((a,x)=>a+x.amt,0), dealsGoneQuiet:quiet.length, quietThresholdDays:thr },
+    lossReasonsAllTime:lossReasons
+  };
+}
+function renderDashSummary(container, data){
+  container.innerHTML='';
+  if (data.headline) container.appendChild(el('div',{class:'dai-headline'}, data.headline));
+  if (Array.isArray(data.insights) && data.insights.length)
+    container.appendChild(el('ul',{class:'dai-insights'}, ...data.insights.map(ins => el('li',{class:'dai-i dai-'+((ins&&ins.tone)||'neutral')}, (ins&&ins.text)||String(ins)))));
+  if (data.focus) container.appendChild(el('div',{class:'dai-focus'}, el('b',{},'Focus: '), data.focus));
+}
+async function generateDashSummary(container, btn){
+  if (!SUPABASE_URL){ container.innerHTML=''; container.appendChild(el('div',{class:'dai-empty'},'Cloud isn’t configured, so the AI summary is unavailable.')); return; }
+  if (btn){ btn.disabled=true; btn.textContent='Analyzing…'; }
+  container.innerHTML=''; container.appendChild(el('div',{class:'dai-loading'},'Reading your numbers and writing the story…'));
+  try {
+    const snap = dashSnapshot();
+    const r = await fetch(SUPABASE_URL + '/functions/v1/dashboard-summary', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY },
+      body: JSON.stringify({ window:snap.window, rep:snap.scope, metrics:snap })
+    });
+    const data = await r.json().catch(()=>({error:'Unexpected response.'}));
+    if (!r.ok) throw new Error(data.error || ('Error '+r.status));
+    renderDashSummary(container, data);
+    state.dashSummaryCache = { key: dashSummaryKey(), data };
+  } catch(e){
+    container.innerHTML=''; container.appendChild(el('div',{class:'dai-err'}, 'Couldn’t generate the summary: ' + (e&&e.message?e.message:e)));
+  } finally { if(btn){ btn.disabled=false; btn.textContent='↻ Refresh'; } }
+}
+function dashSummaryCard(){
+  const card=el('div',{class:'metric-card dai-card'});
+  const bodyEl=el('div',{class:'dai-body'});
+  const btn=el('button',{class:'btn ghost sm', type:'button'}, 'Generate');
+  btn.addEventListener('click', ()=>generateDashSummary(bodyEl, btn));
+  card.appendChild(el('div',{class:'metric-h'},
+    el('span',{}, '✨ The story this week'),
+    infoTip('AI reads the numbers in the current window and writes a short narrative — what’s working, what’s lagging vs goal, what’s at risk, and what to focus on. Click Generate (uses one AI call; cached per window).'),
+    el('div',{class:'metric-h-actions'}, btn)));
+  card.appendChild(bodyEl);
+  if (state.dashSummaryCache && state.dashSummaryCache.key===dashSummaryKey()){ renderDashSummary(bodyEl, state.dashSummaryCache.data); btn.textContent='↻ Refresh'; }
+  else bodyEl.appendChild(el('div',{class:'dai-empty'}, 'Click Generate for an AI read on these numbers — the highlights, the risks, and what to do next.'));
+  return card;
+}
 function renderMetrics(){
   const body=document.getElementById('metrics-body'); body.innerHTML='';
   const team=getTeam();
@@ -6571,6 +6667,7 @@ function renderMetrics(){
   body.appendChild(metricsTabBar());
   const content = el('div',{class:'mx-content'}); body.appendChild(content);
   if (tab === 'overview'){
+    content.appendChild(dashSummaryCard());
     content.appendChild(kpiRow);
     content.appendChild(el('div',{class:'metric-grid'}, goalsSection(decks), forecastSection(decks)));
   } else if (tab === 'goals'){
