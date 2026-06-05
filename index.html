@@ -8499,8 +8499,8 @@ async function composeProposalPdf(deck, setLabel){
       setLabel('Rendering proposal ' + (i+1) + ' / ' + pages.length + '…');
       await inlineRemoteImages(pages[i], imgCache);   // inline photos so they land in the PDF
       staticizeFields(pages[i]);
-      const shot = await window.html2canvas(pages[i], { scale:2, useCORS:true, allowTaint:false, backgroundColor:'#ffffff', width:816, height:1056, windowWidth:816, windowHeight:1056, imageTimeout:15000, logging:false });
-      const img = shot.toDataURL('image/jpeg', 0.92);
+      const shot = await window.html2canvas(pages[i], { scale:3, useCORS:true, allowTaint:false, backgroundColor:'#ffffff', width:816, height:1056, windowWidth:816, windowHeight:1056, imageTimeout:15000, logging:false });
+      const img = shot.toDataURL('image/jpeg', 0.96);
       if (i>0) pdf.addPage([816,1056],'portrait');
       pdf.addImage(img,'JPEG',0,0,816,1056);
     }
@@ -9970,6 +9970,24 @@ async function inlineRemoteImages(root, cache) {
 function staticizeFields(node) {
   node.querySelectorAll('input, textarea').forEach(f => {
     const cs = getComputedStyle(f);
+    // Range sliders: html2canvas can't render the thumb (a pseudo-element). Rebuild
+    // a static track + fill + thumb so the slider shows correctly in the PDF.
+    if (f.type === 'range') {
+      const min = Number(f.min || 0), max = Number(f.max || 100), val = Number(f.value || 0);
+      const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;display:block;';
+      wrap.style.width = cs.width; wrap.style.height = '26px'; wrap.style.margin = cs.margin;
+      const track = document.createElement('div');
+      track.style.cssText = 'position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:8px;border-radius:999px;';
+      track.style.background = f.style.background || (cs.backgroundImage !== 'none' ? cs.backgroundImage : (cs.backgroundColor || '#d8d2cf'));
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:absolute;top:50%;width:26px;height:26px;border-radius:50%;background:#1E1715;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.18);transform:translate(-50%,-50%);';
+      thumb.style.left = pct + '%';
+      wrap.appendChild(track); wrap.appendChild(thumb);
+      f.parentNode.replaceChild(wrap, f);
+      return;
+    }
     const div = document.createElement('div');
     const hasVal = f.value != null && f.value !== '';
     div.textContent = hasVal ? f.value : (f.placeholder || '');
@@ -10020,10 +10038,10 @@ async function composeSlidesPdf(setLabel) {
       const bg = node.classList.contains('dark') ? '#1E1715'
                : node.classList.contains('surface') ? '#F8F8F8' : '#ffffff';
       const shot = await window.html2canvas(canvas, {
-        scale: 2, useCORS: true, allowTaint: false, backgroundColor: bg, imageTimeout: 15000,
+        scale: 3, useCORS: true, allowTaint: false, backgroundColor: bg, imageTimeout: 15000,
         width: 1280, height: 720, windowWidth: 1280, windowHeight: 720, logging: false
       });
-      const img = shot.toDataURL('image/jpeg', 0.92);
+      const img = shot.toDataURL('image/jpeg', 0.96);
       if (i > 0) pdf.addPage([1280, 720], 'landscape');
       pdf.addImage(img, 'JPEG', 0, 0, 1280, 720);
     }
