@@ -1970,6 +1970,14 @@
   .rs-mini-stats { margin-top:18px; display:flex; flex-direction:column; gap:11px; }
   .rs-mini { font-size:15px; color:var(--ink-3); } .rs-mini b { color:var(--ink); font-weight:700; font-size:17px; }
   .rs-loss { margin-top:16px; font-size:13.5px; color:#991b1b; background:#fef2f2; border-radius:10px; padding:10px 14px; line-height:1.45; } .rs-loss b { color:#dc2626; }
+  /* report AI "story this week" slide */
+  .rs-ai-headline { font-size:25px; font-weight:600; letter-spacing:-.015em; line-height:1.32; color:var(--ink); margin:0 0 26px; max-width:1080px; }
+  .rs-ai-insights { display:grid; grid-template-columns:1fr 1fr; gap:13px 36px; }
+  .rs-ai-i { position:relative; padding-left:22px; font-size:15.5px; line-height:1.5; color:var(--ink-2); }
+  .rs-ai-i::before { content:''; position:absolute; left:2px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--ink-4); }
+  .rs-ai-i.dai-good::before { background:#16a34a; } .rs-ai-i.dai-bad::before { background:#dc2626; } .rs-ai-i.dai-watch::before { background:#d97706; } .rs-ai-i.dai-neutral::before { background:var(--ink-4); }
+  .rs-ai-focus { margin-top:24px; padding:15px 19px; background:var(--accent-soft); border-radius:14px; font-size:15.5px; line-height:1.5; color:var(--accent-soft-text); }
+  .rs-ai-focus b { color:var(--ink); }
 
   /* dark-slide overrides for shared rep-* widgets */
   .report-slide.rs-dark .rep-list .rl-main, .report-slide.rs-dark .rep-list .rl-amt { color:#fff; }
@@ -7869,6 +7877,15 @@ function buildReportSlides(data){
       el('div',{class:'rs-cover-foot'}, dataNote(data.dataHealth)))
   ));
 
+  // ----- Slide 1.5: AI "story this week" (only if generated) -----
+  if (data.aiSummary && (data.aiSummary.headline || (data.aiSummary.insights||[]).length)){
+    const ai = data.aiSummary;
+    slides.push(rsSlide({ eyebrow:'AI read of the week', title:'The story this week' },
+      ai.headline ? el('p',{class:'rs-ai-headline'}, ai.headline) : null,
+      (ai.insights||[]).length ? el('div',{class:'rs-ai-insights'}, ...ai.insights.map(ins => el('div',{class:'rs-ai-i dai-'+((ins&&ins.tone)||'neutral')}, (ins&&ins.text)||String(ins)))) : null,
+      ai.focus ? el('div',{class:'rs-ai-focus'}, el('b',{},'Focus: '), ai.focus) : null));
+  }
+
   // ----- Slide 2b: 8-week trend -----
   const tr = data.trends, mk = (key)=> tr.map(w => ({ label:w.label, v:w[key] }));
   const trendSlide = rsSlide({ eyebrow:'Trajectory', title:'8-week trend' },
@@ -8013,6 +8030,41 @@ function buildReportSlides(data){
   return slides;
 }
 
+/* weeklyReportData + any generated AI summary for the week, ready to build slides. */
+function reportData(offset){ const d = weeklyReportData(offset); d.aiSummary = (state.reportAiCache && state.reportAiCache[offset]) || null; return d; }
+/* Map the weekly report's data into the generic dashboard-summary snapshot shape. */
+function reportSnapshot(data){
+  const g = data.goals;
+  return {
+    window: weekLabel(data.cur) + ' (Sunday–Saturday week)',
+    scope: 'the whole team',
+    kpisThisWindow:{ newLeads:data.wk.leads, demos:data.wk.demos, verbalCommits:data.wk.commits, dealsWon:data.wk.wonCount, revenueWon:data.wk.wonAmt, winRatePct:data.wk.winRate, openPipeline:data.openValue, weightedForecast:Math.round(data.weighted) },
+    vsPriorWeek:{ newLeads:data.pw.leads, demos:data.pw.demos, verbalCommits:data.pw.commits, dealsWon:data.pw.wonCount, revenueWon:data.pw.wonAmt },
+    monthToDateGoals:{ leads:{actual:data.mtd.leads,target:g.leads.goal}, demos:{actual:data.mtd.demos,target:g.demos.goal}, salesRevenue:{actual:data.mtd.sales,target:g.sales.goal} },
+    bySource:(data.bySource||[]).slice(0,5).map(m=>({source:m.key, leadsMTD:m.leads, wonMTD:m.wonAmt, winRatePct:m.winRate, openPipeline:m.openPipe})),
+    pipelineAtRisk:{ totalDollars:data.atRiskTotal, dealsGoneQuiet:(data.quietOpen||[]).length },
+    lossReasonsAllTime:(data.lossReasons||[]).slice(0,5).map(r=>({reason:r.reason, count:r.n})),
+    repScoreboard:(data.reps||[]).filter(r=>!r.muted).map(r=>({rep:r.name, leadsThisWeek:r.leads, demosThisWeek:r.demos, wonThisWeek:r.wonCount, wonAmountThisWeek:r.wonAmt}))
+  };
+}
+async function generateReportSummary(offset, container, btn){
+  if (!SUPABASE_URL){ container.innerHTML=''; container.appendChild(el('div',{class:'dai-empty'},'Cloud isn’t configured, so the AI summary is unavailable.')); return; }
+  if (btn){ btn.disabled=true; btn.textContent='Analyzing…'; }
+  container.innerHTML=''; container.appendChild(el('div',{class:'dai-loading'},'Reading the week and writing the story…'));
+  try {
+    const snap = reportSnapshot(weeklyReportData(offset));
+    const r = await fetch(SUPABASE_URL + '/functions/v1/dashboard-summary', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY },
+      body: JSON.stringify({ window:snap.window, rep:snap.scope, metrics:snap })
+    });
+    const res = await r.json().catch(()=>({error:'Unexpected response.'}));
+    if (!r.ok) throw new Error(res.error || ('Error '+r.status));
+    state.reportAiCache = state.reportAiCache || {}; state.reportAiCache[offset] = res;
+    renderReports();   // re-render: shows the narrative card + adds the AI slide (slide 2) to the thumbnails
+  } catch(e){
+    container.innerHTML=''; container.appendChild(el('div',{class:'dai-err'}, 'Couldn’t generate the summary: ' + (e&&e.message?e.message:e)));
+  } finally { if(btn){ btn.disabled=false; } }
+}
 function renderReports(){
   const body = document.getElementById('reports-body');
   body.innerHTML = '';
@@ -8027,7 +8079,18 @@ function renderReports(){
     el('div',{}, el('h1',{class:'lb-title'}, 'Weekly report'), el('p',{class:'lb-sub'}, 'Exec summary + rep scoreboard as a slideshow. Pick a week, then present full-screen, download, or print. Click any slide to present from it.')),
     el('div',{class:'rep-controls'}, el('span',{class:'rep-week-lbl'}, 'Week'), sel, printBtn, dlBtn, presentBtn)));
   if (!getDecks().length){ body.appendChild(el('p',{class:'muted', style:'padding:20px 4px'}, 'No deals in the system yet — add leads to generate a report.')); return; }
-  const data = weeklyReportData(offset);
+  const data = reportData(offset);
+  // AI "story this week" — generate once per week; it's also woven in as slide 2.
+  const aiBody = el('div',{class:'dai-body'});
+  const aiBtn = el('button',{class:'btn ghost sm', type:'button'}, data.aiSummary ? '↻ Refresh' : 'Generate');
+  aiBtn.addEventListener('click', ()=>generateReportSummary(offset, aiBody, aiBtn));
+  if (data.aiSummary) renderDashSummary(aiBody, data.aiSummary);
+  else aiBody.appendChild(el('div',{class:'dai-empty'}, 'Generate an AI read of this week — it’s shown here and added as slide 2 of the report.'));
+  body.appendChild(el('div',{class:'metric-card dai-card', style:'margin-bottom:20px'},
+    el('div',{class:'metric-h'}, el('span',{}, '✨ The story this week'),
+      infoTip('AI reads this week’s numbers and writes a short narrative. Generate once (one AI call, cached for the week); it also becomes slide 2 of the slideshow/PDF.'),
+      el('div',{class:'metric-h-actions'}, aiBtn)),
+    aiBody));
   const grid = el('div',{class:'rep-thumbs'});
   buildReportSlides(data).forEach((sec, i) => {
     const inner = sec.querySelector('.slide-inner');
@@ -8041,7 +8104,7 @@ function renderReports(){
 
 /* Present the report through the deck's full-screen slide presenter. */
 function presentReport(offset, startSlide){
-  state.reportData = weeklyReportData(offset);
+  state.reportData = reportData(offset);
   state.deckMode = 'report';
   state.section = 'reports';        // so the back button returns to the Reports tab
   state.view = 'deck';
@@ -8091,7 +8154,7 @@ async function composeReportSlidesPdf(data, setLabel){
 async function generateReportSlidesPdf(offset, btn){
   const origHTML = btn.innerHTML; btn.disabled = true; btn.innerHTML = 'Building…';
   try {
-    const data = weeklyReportData(offset);
+    const data = reportData(offset);
     const pdf = await composeReportSlidesPdf(data, (t)=>{ btn.innerHTML = t; });
     pdf.save('GearLocker Weekly Report — ' + weekLabel(data.cur).replace(/[,–]/g,'').replace(/\s+/g,' ').trim() + '.pdf');
   } catch(e){
@@ -8100,7 +8163,7 @@ async function generateReportSlidesPdf(offset, btn){
   } finally { btn.disabled = false; btn.innerHTML = origHTML; }
 }
 function printReportSlides(offset){
-  const data = weeklyReportData(offset);
+  const data = reportData(offset);
   const w = window.open('', '_blank');
   if (!w){ alert('Please allow pop-ups to print the report (or use Download PDF).'); return; }
   const styles = Array.prototype.slice.call(document.querySelectorAll('style, link[rel="stylesheet"]')).map(n=>n.outerHTML).join('\n');
