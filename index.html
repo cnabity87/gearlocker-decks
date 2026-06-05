@@ -1855,6 +1855,22 @@
   .eb-cap-row label { font-size:13px; color:var(--ink-2); }
   .eb-load-note { font-size:12px; color:var(--ink-4); }
 
+  /* Proximity prospecting */
+  .prospect-bar { display:flex; align-items:center; gap:12px; margin:18px 0 8px; flex-wrap:wrap; }
+  .prospect-seed-sel { padding:9px 12px; border:1px solid var(--border); border-radius:10px; font:inherit; font-size:13.5px; min-width:240px; background:#fff; }
+  .prospect-loading { font-size:13px; color:var(--ink-3); background:var(--accent-soft); border-radius:10px; padding:11px 14px; margin:8px 0 14px; }
+  .prospect-group { margin-bottom:22px; }
+  .prospect-card { display:flex; align-items:center; gap:14px; border:1px solid var(--border); border-radius:12px; padding:13px 15px; margin-top:9px; background:#fff; }
+  .prospect-fit { flex-shrink:0; width:42px; height:42px; border-radius:10px; background:var(--accent-soft); color:var(--accent-soft-text); font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .prospect-main { flex:1; min-width:0; }
+  .prospect-top { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .prospect-school { font-size:14.5px; font-weight:700; color:var(--ink); }
+  .prospect-prox { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; border-radius:6px; padding:2px 7px; }
+  .px-dist { background:#dcfce7; color:#15803d; } .px-city { background:#e0f2fe; color:#0369a1; } .px-county { background:#eef2ff; color:#4338ca; } .px-town { background:#f1f5f9; color:#64748b; }
+  .prospect-meta { font-size:12.5px; color:var(--ink-4); margin-top:3px; }
+  .prospect-reason { font-size:12.5px; color:var(--ink-3); margin-top:4px; font-style:italic; }
+  .prospect-actions { display:flex; gap:8px; flex-shrink:0; }
+
   /* dashboard parity: KPI deltas, gran toggle, loss bars, forecast-vs-plan */
   .kpi-d { display:block; margin-top:6px; font-size:11px; font-weight:600; line-height:1.2; }
   .kpi-d.up { color:#16a34a; } .kpi-d.down { color:#dc2626; } .kpi-d.flat { color:var(--ink-4); }
@@ -3192,6 +3208,12 @@
     <div class="lb-main"><div id="today-body"></div></div>
   </div>
 
+  <!-- Proximity prospecting page -->
+  <div class="dash section-layer" id="prospects-page" style="display:none;">
+    <div class="dash-top"></div>
+    <div class="lb-main"><div id="prospects-body"></div></div>
+  </div>
+
   <!-- Modals (create deck / manage team) -->
   <div class="modal-overlay" id="modal-overlay"><div class="modal" id="modal"></div></div>
 
@@ -3580,6 +3602,12 @@ let EB_CONFIG = { enabled:false, baseUrl:'', campaignId:'', campaignName:'', dai
 function ebConfig(){ return { type:'emailbison', enabled:!!EB_CONFIG.enabled, baseUrl:EB_CONFIG.baseUrl||'', campaignId:String(EB_CONFIG.campaignId||''), campaignName:EB_CONFIG.campaignName||'', dailyCap:Number(EB_CONFIG.dailyCap)||50 }; }
 function applyEb(cfg){ if (cfg && typeof cfg === 'object'){ if (typeof cfg.enabled!=='undefined') EB_CONFIG.enabled=!!cfg.enabled; if (typeof cfg.baseUrl!=='undefined') EB_CONFIG.baseUrl=cfg.baseUrl||''; if (typeof cfg.campaignId!=='undefined') EB_CONFIG.campaignId=String(cfg.campaignId||''); if (typeof cfg.campaignName!=='undefined') EB_CONFIG.campaignName=cfg.campaignName||''; if (cfg.dailyCap!=null && cfg.dailyCap!=='') EB_CONFIG.dailyCap=Number(cfg.dailyCap)||50; } }
 function saveEb(){ saveJSON(EMAILBISON_KEY, ebConfig()); if (cloudOn()) sbUpsert('settings', 'emailbison', ebConfig()).catch(e => console.warn('emailbison sync failed', e)); }
+
+const PROSPECTS_KEY = 'gl_prospects_v1';
+let PROSPECTS = [];
+function prospectsConfig(){ return { type:'prospects', list: PROSPECTS.slice(0, 500) }; }
+function applyProspects(cfg){ if (cfg && Array.isArray(cfg.list)) PROSPECTS = cfg.list.filter(Boolean); }
+function saveProspects(){ saveJSON(PROSPECTS_KEY, prospectsConfig()); if (cloudOn()) sbUpsert('settings', 'prospects', prospectsConfig()).catch(e => console.warn('prospects sync failed', e)); }
 function subsFor(name){ const s = SOURCES.find(x => x.name === name); return s ? s.subs : []; }
 /* ---- Monthly goals (dashboard pacing) ---- */
 const GOALS_KEY = 'gl_goals_v1';
@@ -3778,6 +3806,7 @@ applyPlaybooks(loadJSON(PLAYBOOKS_KEY, null));      // restore stage playbooks (
 applySequences(loadJSON(SEQUENCES_KEY, null));      // restore email sequences (cloud copy loads in refreshFromCloud)
 applySources(loadJSON(SOURCES_KEY, null));          // restore lead sources (cloud copy loads in refreshFromCloud)
 applyEb(loadJSON(EMAILBISON_KEY, null));             // restore EmailBison config (cloud copy loads in refreshFromCloud)
+applyProspects(loadJSON(PROSPECTS_KEY, null));       // restore prospect queue (cloud copy loads in refreshFromCloud)
 applyLossReasons(loadJSON(LOSS_REASONS_KEY, null)); // restore loss reasons
 applyGoals(loadJSON(GOALS_KEY, null));               // restore monthly goals
 function getDecks(){ return DB.decks; }
@@ -3897,6 +3926,8 @@ async function refreshFromCloud(){
   if (lossr){ applyLossReasons(lossr); saveJSON(LOSS_REASONS_KEY, lossReasonsConfig()); }
   const eb = (settings || []).find(s => s && s.type === 'emailbison');
   if (eb){ applyEb(eb); saveJSON(EMAILBISON_KEY, ebConfig()); }
+  const prospects = (settings || []).find(s => s && s.type === 'prospects');
+  if (prospects){ applyProspects(prospects); saveJSON(PROSPECTS_KEY, prospectsConfig()); }
   return { blocked: false };
 }
 const uid = (p) => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
@@ -6346,10 +6377,10 @@ function tlNode(e, opts){
 }
 
 /* ---------- CRM section navigation ---------- */
-const SECTION_PAGE = { today:'today-page', leads:'dashboard', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', reports:'reports-page', settings:'settings-page' };
-const SECTION_VIEW = { today:'today', leads:'dashboard', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', reports:'reports', settings:'settings' };
-const NAV_TABS = [ {key:'today',label:'Today'}, {key:'leads',label:'Leads'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'reports',label:'Reports'}, {key:'settings',label:'Settings'} ];
-const ALL_LAYER_IDS = ['today-page','dashboard','pipeline-page','metrics-page','leaderboard-page','reports-page','settings-page','tasks-page','lead-page'];
+const SECTION_PAGE = { today:'today-page', leads:'dashboard', prospects:'prospects-page', pipeline:'pipeline-page', dashboard:'metrics-page', tasks:'tasks-page', performance:'leaderboard-page', reports:'reports-page', settings:'settings-page' };
+const SECTION_VIEW = { today:'today', leads:'dashboard', prospects:'prospects', pipeline:'pipeline', dashboard:'metrics', tasks:'tasks', performance:'leaderboard', reports:'reports', settings:'settings' };
+const NAV_TABS = [ {key:'today',label:'Today'}, {key:'leads',label:'Leads'}, {key:'prospects',label:'Prospects'}, {key:'pipeline',label:'Pipeline'}, {key:'dashboard',label:'Dashboard'}, {key:'tasks',label:'Nudges & Tasks'}, {key:'performance',label:'Performance'}, {key:'reports',label:'Reports'}, {key:'settings',label:'Settings'} ];
+const ALL_LAYER_IDS = ['today-page','dashboard','pipeline-page','metrics-page','leaderboard-page','reports-page','settings-page','tasks-page','prospects-page','lead-page'];
 function hideAllSections(){ ALL_LAYER_IDS.forEach(id => { const e = document.getElementById(id); if (e){ e.style.display='none'; if (id==='dashboard') e.classList.add('is-hidden'); } }); }
 function buildNav(active){
   const chip = el('button',{class:'user-chip', type:'button'});
@@ -6369,7 +6400,7 @@ function buildNav(active){
     el('div',{class:'topnav-left'},
       el('span',{class:'brand-mark topnav-logo', html: LOGO_IMG_DARK}),
       el('nav',{class:'topnav-tabs'}, ...NAV_TABS.map(t => el('button',{class:'topnav-tab' + (active===t.key?' active':''), type:'button', onClick:()=>showSection(t.key)},
-        t.label, (t.key==='tasks' && tasksCount) ? el('span',{class:'topnav-badge'}, String(tasksCount)) : null)))
+        t.label, (t.key==='tasks' && tasksCount) ? el('span',{class:'topnav-badge'}, String(tasksCount)) : (t.key==='prospects' && PROSPECTS.length) ? el('span',{class:'topnav-badge'}, String(PROSPECTS.length)) : null)))
     ),
     el('div',{class:'topnav-right'},
       (AUTH && GOOGLE_CLIENT_ID && !onboardingComplete()) ? el('button',{class:'topnav-setup', type:'button', title:'Finish setting up your account', onClick:openOnboardingModal}, el('span',{class:'topnav-setup-dot'}), 'Finish setup · ' + onboardingRemaining()) : null,
@@ -6389,6 +6420,7 @@ function showSection(name){
   else if (name==='pipeline') renderPipeline();
   else if (name==='dashboard') renderMetrics();
   else if (name==='tasks') renderTasksSection();
+  else if (name==='prospects') renderProspects();
   else if (name==='performance') renderLeaderboard();
   else if (name==='reports') renderReports();
   else if (name==='settings') renderSettingsPage();
@@ -7472,8 +7504,8 @@ function ebVarsFor(deck){
   const r = deck.research || {};
   const enr = deck.enrollment || (parseInt(String(r.enrollment||'').replace(/[^0-9]/g,''),10) || '');
   const vars = { school:deck.school||'', state:deckState(deck)||'', district:r.district||'', enrollment:enr?String(enr):'', top_sport:(Array.isArray(deck.sports)&&deck.sports[0]) || (Array.isArray(r.sports)&&r.sports[0]) || '' };
-  const hint = (typeof reEngageHintForLead==='function') ? reEngageHintForLead(deck) : null;
-  if (hint && hint.winner) vars.nearby_win = hint.winner.school + ' (' + hint.state + ')';
+  if (deck.nearWin){ vars.nearby_win = deck.nearWin; }   // approved-from-prospect carries its seed win
+  else { const hint = (typeof reEngageHintForLead==='function') ? reEngageHintForLead(deck) : null; if (hint && hint.winner) vars.nearby_win = hint.winner.school + ' (' + hint.state + ')'; }
   return vars;
 }
 async function pushToEmailBison(deck){
@@ -7546,6 +7578,99 @@ function leadEmailBisonCard(deck){
   card.appendChild(el('div',{class:'muted', style:'font-size:13px', html:'Push this lead into your EmailBison campaign — it sends across your rotating inboxes with the research baked into the personalization.'}));
   card.appendChild(el('button',{class:'btn sm primary', type:'button', disabled:(busy||!deck.contactEmail)?'':null, onClick:()=>pushToEmailBison(deck)}, busy?'Sending…':(deck.contactEmail?'Send to EmailBison':'No email on file')));
   return card;
+}
+
+/* ---------- Proximity prospecting — the self-building pipeline ----------
+   Seed = schools we've won. The discovery agent (web search) finds REAL nearby
+   schools → review queue with proximity + fit score → approve → becomes a lead,
+   auto-researched, carrying the win next door as built-in social proof. */
+const _discoverInFlight = { on:false };
+function customerSeeds(){ return getDecks().filter(d => dealStage(d)==='closedwon').sort((a,b)=> String(winDateFor(b)||'').localeCompare(String(winDateFor(a)||''))); }
+function _normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function existingSchoolSet(){ const set=new Set(); getDecks().forEach(d=>{ if(d.school) set.add(_normName(d.school)); }); PROSPECTS.forEach(p=>{ if(p.school) set.add(_normName(p.school)); }); return set; }
+async function discoverNearbyForSeed(seed, limit){
+  if (!SUPABASE_URL) throw new Error('cloud off');
+  const existing = getDecks().map(d=>d.school).filter(Boolean).concat(PROSPECTS.map(p=>p.school).filter(Boolean)).slice(0,400);
+  const r = await fetch(SUPABASE_URL+'/functions/v1/discover-nearby', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ seed:{ school:seed.school, city:(seed.research&&seed.research.city)||'', state:deckState(seed)||'', district:(seed.research&&seed.research.district)||'' }, existing, limit:limit||12 }) });
+  const data = await r.json().catch(()=>({})); if (!r.ok) throw new Error(data.error||('Error '+r.status));
+  const have = existingSchoolSet(); let added=0;
+  (data.candidates||[]).forEach(c => {
+    if (!c.school || have.has(_normName(c.school))) return; have.add(_normName(c.school));
+    PROSPECTS.push({ id:uid('p_'), seedId:seed.id, seedSchool:seed.school, seedState:deckState(seed)||'', school:c.school, city:c.city||'', state:(c.state||'').toUpperCase(), district:c.district||'', proximity:c.proximity||'', approxMiles:c.approxMiles||'', level:c.level||'', estEnrollment:c.estEnrollment||'', fitReason:c.fitReason||'', fitScore:Number(c.fitScore)||0, addedAt:new Date().toISOString() });
+    added++;
+  });
+  return { added };
+}
+async function findNearbyProspects(opts){
+  opts = opts || {};
+  if (!SUPABASE_URL){ showToast('Connect the cloud to find prospects.'); return; }
+  const seeds = opts.seed ? [opts.seed] : customerSeeds().slice(0, opts.maxSeeds || 3);
+  if (!seeds.length){ showToast('Win a deal first — prospecting seeds from the schools you’ve closed.'); return; }
+  if (_discoverInFlight.on) return; _discoverInFlight.on = true; renderProspects();
+  let total = 0;
+  for (const s of seeds){
+    try { const res = await discoverNearbyForSeed(s, opts.limit || 12); total += res.added||0; saveProspects(); if (state.section==='prospects') renderProspects(); } catch(e){ /* skip this seed */ }
+  }
+  _discoverInFlight.on = false;
+  showToast(total ? ('Found ' + total + ' nearby prospect' + (total>1?'s':'') + '.') : 'No new nearby schools found.');
+  if (state.section==='prospects') renderProspects();
+}
+function dismissProspect(id){ PROSPECTS = PROSPECTS.filter(p=>p.id!==id); saveProspects(); renderProspects(); }
+function approveProspect(id){
+  const p = PROSPECTS.find(x=>x.id===id); if(!p) return;
+  const now = new Date().toISOString();
+  const deck = { id: uid('d_'), school: p.school, salespersonId: null,
+    contactFirst:'', contactLast:'', contactEmail:'', stage:'newlead', leadSource:'Proximity outreach', leadSubSource: p.seedSchool ? ('near '+p.seedSchool) : '',
+    createdAt:now, updatedAt:now, enrollment: (/^\d+$/.test(String(p.estEnrollment||''))?p.estEnrollment:''), state:p.state||'', sports:[], lossPct:10, checksTech:null, sis:'',
+    nearWin: p.seedSchool ? (p.seedSchool + (p.seedState?(' ('+p.seedState+')'):'')) : '',
+    prospectMeta:{ proximity:p.proximity, approxMiles:p.approxMiles, fitScore:p.fitScore, fitReason:p.fitReason, city:p.city, district:p.district },
+    history:[{ at:now, by:'Prospecting', type:'stage', detail:'Sourced near ' + p.seedSchool + (p.proximity?(' · '+p.proximity):'') }] };
+  upsertDeck(deck);
+  PROSPECTS = PROSPECTS.filter(x=>x.id!==id); saveProspects();
+  if (AUTOMATION.autoAi!==false && SUPABASE_URL) setTimeout(()=>enrichLeadFor(deck,{toast:false}), 600);
+  showToast('Added ' + p.school + ' to leads' + (AUTOMATION.autoAi!==false?' — researching now':'') + '.');
+  renderProspects();
+}
+function prospectCard(p){
+  const proxClass = { 'same district':'px-dist', 'same city':'px-city', 'same county':'px-county', 'nearby town':'px-town' }[p.proximity] || 'px-town';
+  const metaBits = [ [p.city,p.state].filter(Boolean).join(', '), p.approxMiles?(p.approxMiles+' mi away'):'', p.estEnrollment?('~'+p.estEnrollment):'', p.district ].filter(Boolean).join('  ·  ');
+  return el('div',{class:'prospect-card'},
+    el('div',{class:'prospect-fit', title:'Fit score (0-100)'}, String(p.fitScore||0)),
+    el('div',{class:'prospect-main'},
+      el('div',{class:'prospect-top'}, el('span',{class:'prospect-school'}, p.school), el('span',{class:'prospect-prox '+proxClass}, p.proximity || 'nearby')),
+      metaBits ? el('div',{class:'prospect-meta'}, metaBits) : null,
+      p.fitReason ? el('div',{class:'prospect-reason'}, p.fitReason) : null),
+    el('div',{class:'prospect-actions'},
+      el('button',{class:'btn sm primary', type:'button', onClick:()=>approveProspect(p.id)}, 'Add as lead'),
+      el('button',{class:'btn ghost sm', type:'button', onClick:()=>dismissProspect(p.id)}, 'Dismiss')));
+}
+function renderProspects(){
+  const body = document.getElementById('prospects-body'); if(!body) return; body.innerHTML='';
+  body.appendChild(el('div',{class:'nt-head'}, el('div',{},
+    el('h1',{class:'lb-title'},'Prospects'),
+    el('div',{class:'settings-subtitle', style:'margin-top:4px;max-width:620px'}, 'Schools next to the ones you’ve won — cold outreach with built-in social proof. Approve to add as a lead (auto-researched), then send to EmailBison citing the win next door.'))));
+  if (!SUPABASE_URL){ body.appendChild(el('div',{class:'today-empty'}, 'Connect the cloud to source prospects.')); return; }
+  const seeds = customerSeeds();
+  const bar = el('div',{class:'prospect-bar'});
+  bar.appendChild(el('button',{class:'btn primary', type:'button', disabled:_discoverInFlight.on?'':null, onClick:()=>findNearbyProspects({})}, _discoverInFlight.on?'Searching…':'Find prospects near our wins'));
+  if (seeds.length){
+    const sel = el('select',{class:'prospect-seed-sel'}, el('option',{value:''},'— or target one customer —'), ...seeds.map(s=>el('option',{value:s.id}, s.school + (deckState(s)?(' ('+deckState(s)+')'):''))));
+    sel.addEventListener('change', ()=>{ const s=seeds.find(x=>x.id===sel.value); sel.value=''; if(s) findNearbyProspects({seed:s, limit:15}); });
+    bar.appendChild(sel);
+  }
+  body.appendChild(bar);
+  if (_discoverInFlight.on) body.appendChild(el('div',{class:'prospect-loading'}, '🔎 Searching the web for nearby schools… (this takes a minute)'));
+  if (!seeds.length && !PROSPECTS.length){ body.appendChild(el('div',{class:'today-empty'}, 'Close your first deal and this fills with nearby schools to go after — each one warmed up by the win next door.')); return; }
+  if (!PROSPECTS.length){ if(!_discoverInFlight.on) body.appendChild(el('div',{class:'today-empty'}, 'No prospects queued. Hit “Find prospects near our wins” to source schools next to your customers.')); return; }
+  const groups = {};
+  PROSPECTS.forEach(p => { (groups[p.seedSchool] = groups[p.seedSchool] || []).push(p); });
+  Object.keys(groups).forEach(seedName => {
+    const list = groups[seedName].slice().sort((a,b)=> (b.fitScore||0)-(a.fitScore||0));
+    const g = el('div',{class:'prospect-group'});
+    g.appendChild(el('div',{class:'today-group-h'}, 'Near ' + seedName, el('span',{class:'today-group-n'}, String(list.length))));
+    list.forEach(p => g.appendChild(prospectCard(p)));
+    body.appendChild(g);
+  });
 }
 async function openReEngageDraft(leadId, winnerId){
   const lead = DB.decks.find(x=>x.id===leadId), winner = DB.decks.find(x=>x.id===winnerId);
