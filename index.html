@@ -1923,6 +1923,12 @@
   .obj-q-in { font-weight:600; color:var(--ink); }
   .obj-a-in { color:var(--ink-2); }
   .obj-save-row { display:flex; align-items:center; gap:12px; margin-top:18px; }
+  .obj-suggest { display:flex; flex-direction:column; gap:12px; margin-bottom:12px; }
+  .obj-sugg-card { border-color:#fdba74; background:#fff7ed; }
+  .obj-sugg-tag { font-size:10px; font-weight:800; letter-spacing:.05em; color:#c2410c; background:#ffedd5; border-radius:5px; padding:2px 7px; }
+  .obj-sugg-q { font-size:13px; font-weight:600; color:var(--ink); line-height:1.45; }
+  .obj-sugg-a { font-size:13px; color:var(--ink-2); line-height:1.5; margin-top:2px; }
+  .obj-sugg-actions { display:flex; gap:8px; margin-top:11px; }
 
   /* dashboard parity: KPI deltas, gran toggle, loss bars, forecast-vs-plan */
   .kpi-d { display:block; margin-top:6px; font-size:11px; font-weight:600; line-height:1.2; }
@@ -4676,6 +4682,14 @@ function renderEmailBisonSettings(){
   wrap.appendChild(card);
   return wrap;
 }
+function gatherObservedObjections(){
+  const out = [];
+  getDecks().forEach(d => {
+    (Array.isArray(d.calls)?d.calls:[]).forEach(c => { const objs = c.coaching && c.coaching.objections; if (Array.isArray(objs)) objs.forEach(o => { if (o && o.objection) out.push({ objection:String(o.objection).slice(0,280), betterRebuttal:(o.betterRebuttal||'').slice(0,280) }); }); });
+    if (d.ebReply && String(d.ebReply).length > 25) out.push({ objection:String(d.ebReply).slice(0,280) });   // cold-reply pushback is objection signal too
+  });
+  return out;
+}
 function renderObjectionPlaybook(){
   const wrap = el('div',{});
   wrap.appendChild(el('p',{class:'settings-subtitle'}, 'The objections your reps actually hear and the best way to answer them — seeded from your recorded sales calls. Edit anything; reps can pull this up mid-call. Saved for the whole team.'));
@@ -4715,17 +4729,49 @@ function renderObjectionPlaybook(){
     faqRefs.forEach(r => r.card.style.display = (!q || r.text().indexOf(q)>=0) ? '' : 'none');
   });
 
-  wrap.appendChild(el('div',{class:'obj-sec-h'}, 'Objection handling', el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ objWrap.appendChild(objCard({cat:'',q:'',a:''})); }}, '+ Add objection')));
+  const collect = ()=>{
+    OBJECTIONS_PB.objections = objRefs.filter(r=>r.card.isConnected).map(r=>({ cat:r.catI.value.trim(), q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(o=>o.q||o.a);
+    OBJECTIONS_PB.faqs = faqRefs.filter(r=>r.card.isConnected).map(r=>({ q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(f=>f.q||f.a);
+  };
+
+  // Self-updating: mine new objections reps actually hit (coached calls + cold replies)
+  const suggestWrap = el('div',{class:'obj-suggest'});
+  const mineNote = el('span',{class:'eb-load-note'}, '');
+  function suggCard(s){
+    const card = el('div',{class:'obj-card obj-sugg-card'},
+      el('div',{class:'obj-card-top'}, el('span',{class:'obj-cat-chip'}, (s.cat||'New') + (s.count?(' · heard '+s.count+'×'):'')), el('span',{class:'obj-sugg-tag'}, 'SUGGESTED')),
+      el('label',{class:'obj-lbl'},'Objection'), el('div',{class:'obj-sugg-q'}, s.q),
+      el('label',{class:'obj-lbl'},'Drafted response'), el('div',{class:'obj-sugg-a'}, s.a),
+      el('div',{class:'obj-sugg-actions'},
+        el('button',{class:'btn sm primary', type:'button', onClick:()=>{ objWrap.appendChild(objCard({cat:s.cat||'',q:s.q,a:s.a})); collect(); saveObjectionsPB(); card.remove(); showToast('Added to the playbook.'); }}, 'Add to playbook'),
+        el('button',{class:'btn ghost sm', type:'button', onClick:()=>card.remove()}, 'Dismiss')));
+    return card;
+  }
+  const mineBtn = el('button',{class:'btn sm', type:'button', onClick:async ()=>{
+    if (!SUPABASE_URL){ mineNote.textContent='Connect the cloud first.'; return; }
+    const observed = gatherObservedObjections();
+    if (!observed.length){ mineNote.textContent='No call or reply objections captured yet — coach some calls first.'; return; }
+    mineBtn.disabled=true; mineNote.textContent='Scanning ' + observed.length + ' objections from your calls & replies…'; suggestWrap.innerHTML='';
+    try {
+      collect();
+      const r = await fetch(SUPABASE_URL+'/functions/v1/objection-mine', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ existing:OBJECTIONS_PB.objections.map(o=>({cat:o.cat,q:o.q})), observed:observed }) });
+      const data = await r.json().catch(()=>({})); if (!r.ok) throw new Error(data.error||('Error '+r.status));
+      const sugg = data.suggestions||[];
+      if (!sugg.length){ mineNote.textContent='No new objections — your playbook already covers what reps are hearing.'; }
+      else { mineNote.textContent = sugg.length + ' suggested addition' + (sugg.length>1?'s':'') + ' — review and approve.'; sugg.forEach(s => suggestWrap.appendChild(suggCard(s))); }
+    } catch(e){ mineNote.textContent='Couldn’t scan: ' + e.message; }
+    finally { mineBtn.disabled=false; }
+  }}, '✨ Suggest from calls');
+
+  wrap.appendChild(el('div',{class:'obj-sec-h'}, 'Objection handling', el('div',{style:'display:flex;gap:8px;align-items:center'}, mineBtn, el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ objWrap.appendChild(objCard({cat:'',q:'',a:''})); }}, '+ Add'))));
+  wrap.appendChild(mineNote);
+  wrap.appendChild(suggestWrap);
   wrap.appendChild(objWrap);
   wrap.appendChild(el('div',{class:'obj-sec-h'}, 'FAQs', el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ faqWrap.appendChild(faqCard({q:'',a:''})); }}, '+ Add FAQ')));
   wrap.appendChild(faqWrap);
 
   const saveNote = el('span',{class:'eb-load-note'}, '');
-  const saveBtn = el('button',{class:'btn primary', type:'button', onClick:()=>{
-    OBJECTIONS_PB.objections = objRefs.filter(r=>document.body.contains(r.card)).map(r=>({ cat:r.catI.value.trim(), q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(o=>o.q||o.a);
-    OBJECTIONS_PB.faqs = faqRefs.filter(r=>document.body.contains(r.card)).map(r=>({ q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(f=>f.q||f.a);
-    saveObjectionsPB(); saveNote.textContent='Saved for the team.'; setTimeout(()=>{ saveNote.textContent=''; }, 2500);
-  }}, 'Save playbook');
+  const saveBtn = el('button',{class:'btn primary', type:'button', onClick:()=>{ collect(); saveObjectionsPB(); saveNote.textContent='Saved for the team.'; setTimeout(()=>{ saveNote.textContent=''; }, 2500); }}, 'Save playbook');
   wrap.appendChild(el('div',{class:'obj-save-row'}, saveBtn, saveNote));
   return wrap;
 }
@@ -7769,7 +7815,7 @@ async function generatePrecall(deck, render){
   if (!SUPABASE_URL){ showToast('Connect the cloud to generate a brief.'); return; }
   if (_precallInFlight.has(deck.id)) return; _precallInFlight.add(deck.id); render();
   try {
-    const res = await fetch(SUPABASE_URL+'/functions/v1/precall-brief', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ lead:buildPrecallLead(deck) }) });
+    const res = await fetch(SUPABASE_URL+'/functions/v1/precall-brief', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ lead:buildPrecallLead(deck), playbook:(OBJECTIONS_PB&&OBJECTIONS_PB.objections)||[] }) });
     const data = await res.json().catch(()=>({})); if (!res.ok) throw new Error(data.error||('Error '+res.status));
     precallSave(deck, data);
   } catch(e){ showToast('Brief failed: ' + e.message); }
@@ -7808,7 +7854,7 @@ async function coachTranscript(deck, transcript, source, title){
   showToast('Coaching the call…');
   try {
     const rubric = (typeof RUBRIC!=='undefined' && Array.isArray(RUBRIC)) ? RUBRIC.map(r=>r.name).filter(Boolean).slice(0,8) : [];
-    const res = await fetch(SUPABASE_URL+'/functions/v1/coach-call', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ transcript, rubric, context:{ school:cur.school, rep:coachRepNameOf(cur), stage:stageMeta(dealStage(cur)).label } }) });
+    const res = await fetch(SUPABASE_URL+'/functions/v1/coach-call', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ transcript, rubric, playbook:(OBJECTIONS_PB&&OBJECTIONS_PB.objections)||[], context:{ school:cur.school, rep:coachRepNameOf(cur), stage:stageMeta(dealStage(cur)).label } }) });
     const data = await res.json().catch(()=>({})); if (!res.ok) throw new Error(data.error||('Error '+res.status));
     const rec = { id:'call_'+uid(''), at:new Date().toISOString(), source:source||'manual', title:title||'', rep:coachRepNameOf(cur), coaching:data };
     const calls = (Array.isArray(cur.calls)?cur.calls.slice():[]); calls.unshift(rec);
