@@ -5940,8 +5940,9 @@ function renderToday(force){
     body.appendChild(seqWrap);
   }
 
-  // Hot replies from EmailBison — cold outreach that just got a response (top priority, deterministic)
-  const ebHot = ebHotLeads(inMyQueue);
+  // Hot replies from EmailBison — cold outreach that just got a response (top priority, deterministic).
+  // Include unassigned inbound replies so a freshly-created EmailBison lead is never hidden by queue scope.
+  const ebHot = ebHotLeads(d => inMyQueue(d) || !d.salespersonId);
   if (ebHot.length){
     const hw = el('div',{class:'today-reeng today-ebhot'});
     hw.appendChild(el('div',{class:'today-group-h'}, '🔥 Replies from outreach', el('span',{class:'today-group-n'}, String(ebHot.length))));
@@ -8976,6 +8977,14 @@ function runAutoTasks(){
   const followup = AUTOMATION.autoFollowup ? Promise.resolve(autoCheckFollowups()).catch(()=>{}) : Promise.resolve();
   followup.finally(() => { if (AUTOMATION.autoGrade) autoGradeDecks().catch(()=>{}); });
   if (AUTOMATION.autoAi !== false) setTimeout(autoInferStates, 1500);   // backfill states for geo re-engagement (cheap, once per lead)
+  if (AUTOMATION.autoAi !== false) setTimeout(autoEnrichInbound, 3000);  // research EmailBison-originated inbound leads (web search; capped)
+}
+const _inboundEnrichTried = new Set();
+function autoEnrichInbound(){
+  if (AUTOMATION.autoAi === false || !SUPABASE_URL) return;
+  const todo = getDecks().filter(d => d.ebOriginated && !d.enrichDone && d.school && !_inboundEnrichTried.has(d.id)).slice(0, 5);
+  let i = 0; (function next(){ if (i >= todo.length) return; const d = todo[i++]; _inboundEnrichTried.add(d.id);
+    Promise.resolve(enrichLeadFor(d, { toast:false })).catch(()=>{}).finally(()=>setTimeout(next, 1500)); })();
 }
 function enterApp(){
   const ls = document.getElementById('login-screen'); if (ls) ls.style.display = 'none';
