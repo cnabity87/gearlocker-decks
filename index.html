@@ -1871,6 +1871,17 @@
   .prospect-reason { font-size:12.5px; color:var(--ink-3); margin-top:4px; font-style:italic; }
   .prospect-actions { display:flex; gap:8px; flex-shrink:0; }
 
+  /* Pre-call brief */
+  .cp-who { font-size:13px; color:var(--ink-2); line-height:1.55; margin:10px 0 4px; }
+  .cp-block { margin-top:12px; }
+  .cp-k { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-4); margin-bottom:4px; }
+  .cp-v { font-size:13px; color:var(--ink); line-height:1.5; }
+  .cp-goal { font-weight:600; }
+  .cp-obj { border-left:2px solid var(--border); padding:2px 0 2px 11px; margin-top:8px; }
+  .cp-obj-q { font-size:12.5px; font-weight:600; color:var(--ink-2); font-style:italic; }
+  .cp-obj-a { font-size:12.5px; color:var(--ink-3); line-height:1.5; margin-top:2px; }
+  .cp-opener { font-size:13px; color:var(--ink); line-height:1.55; background:var(--accent-soft); border-radius:8px; padding:9px 11px; }
+
   /* dashboard parity: KPI deltas, gran toggle, loss bars, forecast-vs-plan */
   .kpi-d { display:block; margin-top:6px; font-size:11px; font-weight:600; line-height:1.2; }
   .kpi-d.up { color:#16a34a; } .kpi-d.down { color:#dc2626; } .kpi-d.flat { color:var(--ink-4); }
@@ -5661,7 +5672,7 @@ function renderLeadOverview(deck, content, sp, contact){
   const mini = el('div',{class:'lead-timeline mini'}); actCard.appendChild(mini);
   fillTimeline(mini, deck, { limit:5, expandable:false });
   const banner = reEngageBanner(deck); if (banner) content.appendChild(banner);   // social-proof re-engage prompt
-  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, leadHealthCard(deck), leadResearchCard(deck), leadEmailBisonCard(deck), ovCard, nxCard, actCard)));
+  content.appendChild(el('div',{class:'lead-grid'}, left, el('div',{class:'lead-right'}, leadHealthCard(deck), leadCallPrepCard(deck), leadResearchCard(deck), leadEmailBisonCard(deck), ovCard, nxCard, actCard)));
 }
 function leadHealthCard(deck){
   const h = dealHealth(deck);
@@ -7585,6 +7596,58 @@ function leadEmailBisonCard(deck){
   }
   card.appendChild(el('div',{class:'muted', style:'font-size:13px', html:'Push this lead into your EmailBison campaign — it sends across your rotating inboxes with the research baked into the personalization.'}));
   card.appendChild(el('button',{class:'btn sm primary', type:'button', disabled:(busy||!deck.contactEmail)?'':null, onClick:()=>pushToEmailBison(deck)}, busy?'Sending…':(deck.contactEmail?'Send to EmailBison':'No email on file')));
+  return card;
+}
+
+/* ---------- Pre-call AI brief — prep a rep in 20 seconds before they dial ---------- */
+const _precallInFlight = new Set();
+function precallFp(deck){ return [dealStage(deck), deck.enrollment||'', deckState(deck), ((deck.research&&deck.research.summary)||'').length, (deck.ebReply||'').length, deckActivities(deck).length, deck.nearWin||'', deck.lostReason||''].join('|'); }
+function precallLoad(deck){ try { const r = JSON.parse(localStorage.getItem('gl_precall_'+deck.id)||'null'); return (r && r.fp===precallFp(deck)) ? r : null; } catch(e){ return null; } }
+function precallSave(deck, brief){ try { localStorage.setItem('gl_precall_'+deck.id, JSON.stringify({ fp:precallFp(deck), brief, at:new Date().toISOString() })); } catch(e){} }
+function buildPrecallLead(deck){
+  const r = deck.research || {};
+  return {
+    school: deck.school,
+    contactName: [deck.contactFirst, deck.contactLast].filter(Boolean).join(' '),
+    state: deckState(deck), city: r.city||'', district: r.district||'',
+    enrollment: deck.enrollment || (r.enrollment||''),
+    sports: (Array.isArray(deck.sports)&&deck.sports.length ? deck.sports : (r.sports||[])).slice(0,12).join(', '),
+    stage: stageMeta(dealStage(deck)).label, source: deck.leadSource||'',
+    nearWin: deck.nearWin||'', lossReason: deck.lostReason||'', lastReply: deck.ebReply||'',
+    researchSummary: r.summary||'',
+    history: deckActivities(deck).slice(-6).map(a=>('• ' + (a.type||'note') + ': ' + String(a.text||a.detail||'').slice(0,160))).join('\n')
+  };
+}
+async function generatePrecall(deck, render){
+  if (!SUPABASE_URL){ showToast('Connect the cloud to generate a brief.'); return; }
+  if (_precallInFlight.has(deck.id)) return; _precallInFlight.add(deck.id); render();
+  try {
+    const res = await fetch(SUPABASE_URL+'/functions/v1/precall-brief', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+SUPABASE_ANON_KEY, 'apikey':SUPABASE_ANON_KEY }, body: JSON.stringify({ lead:buildPrecallLead(deck) }) });
+    const data = await res.json().catch(()=>({})); if (!res.ok) throw new Error(data.error||('Error '+res.status));
+    precallSave(deck, data);
+  } catch(e){ showToast('Brief failed: ' + e.message); }
+  finally { _precallInFlight.delete(deck.id); render(); }
+}
+function leadCallPrepCard(deck){
+  const card = el('div',{class:'lead-card callprep-card'});
+  const busy = _precallInFlight.has(deck.id);
+  const cached = precallLoad(deck);
+  const render = ()=>{ if (state.view==='lead' && state.leadId===deck.id) renderLead(DB.decks.find(x=>x.id===deck.id)||deck); };
+  card.appendChild(el('div',{class:'lead-card-h lead-card-h-row'}, el('span',{},'📞 Call prep'),
+    el('button',{class:'lead-viewall', type:'button', disabled:busy?'':null, onClick:()=>generatePrecall(deck, render)}, busy?'Prepping…':(cached?'Refresh':'Prep me for this call'))));
+  if (!SUPABASE_URL){ card.appendChild(el('div',{class:'muted', style:'font-size:13px'}, 'Connect the cloud to generate a brief.')); return card; }
+  if (busy && !cached){ card.appendChild(el('div',{class:'lead-empty', style:'padding:6px 0'}, 'Building your brief…')); return card; }
+  if (!cached){ card.appendChild(el('div',{class:'lead-empty', style:'padding:6px 0'}, 'Get a 20-second brief before you dial — who they are, the best angle, the objections you’ll hit with rebuttals, and your opener.')); return card; }
+  const b = cached.brief;
+  if (b.who) card.appendChild(el('div',{class:'cp-who'}, b.who));
+  if (b.angle) card.appendChild(el('div',{class:'cp-block'}, el('div',{class:'cp-k'},'Best angle'), el('div',{class:'cp-v'}, b.angle)));
+  if (b.goal) card.appendChild(el('div',{class:'cp-block'}, el('div',{class:'cp-k'},'Goal for this call'), el('div',{class:'cp-v cp-goal'}, b.goal)));
+  if (Array.isArray(b.objections) && b.objections.length){
+    const ob = el('div',{class:'cp-block'}, el('div',{class:'cp-k'},'Likely objections'));
+    b.objections.forEach(o => ob.appendChild(el('div',{class:'cp-obj'}, el('div',{class:'cp-obj-q'}, '“' + o.objection + '”'), el('div',{class:'cp-obj-a'}, o.rebuttal))));
+    card.appendChild(ob);
+  }
+  if (b.opener) card.appendChild(el('div',{class:'cp-block'}, el('div',{class:'cp-k'},'Opener'), el('div',{class:'cp-opener'}, b.opener)));
   return card;
 }
 
