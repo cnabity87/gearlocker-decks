@@ -1908,6 +1908,22 @@
   .coach-rub-c { font-weight:600; color:var(--ink-2); min-width:120px; } .coach-rub-s { font-weight:700; color:var(--accent); } .coach-rub-n { color:var(--ink-4); }
   .coach-next { font-size:13px; color:var(--ink); margin-top:12px; line-height:1.5; }
 
+  /* Objections & FAQs playbook */
+  .obj-search { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:10px; padding:10px 13px; font:inherit; font-size:14px; margin:6px 0 18px; }
+  .obj-sec-h { display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); margin:22px 0 10px; }
+  .obj-list { display:flex; flex-direction:column; gap:12px; }
+  .obj-card { border:1px solid var(--border); border-radius:12px; padding:13px 15px; background:#fff; }
+  .obj-card-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .obj-cat-in { border:1px solid var(--border); border-radius:7px; padding:4px 9px; font:inherit; font-size:12px; font-weight:700; color:var(--accent); max-width:200px; }
+  .obj-cat-chip { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--accent); }
+  .obj-del { background:none; border:none; color:var(--ink-4); cursor:pointer; font-size:13px; padding:4px 6px; border-radius:6px; }
+  .obj-del:hover { background:#fee2e2; color:#b91c1c; }
+  .obj-lbl { display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-4); margin:8px 0 3px; }
+  .obj-q-in, .obj-a-in { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:8px; padding:8px 10px; font:inherit; font-size:13px; line-height:1.5; resize:vertical; }
+  .obj-q-in { font-weight:600; color:var(--ink); }
+  .obj-a-in { color:var(--ink-2); }
+  .obj-save-row { display:flex; align-items:center; gap:12px; margin-top:18px; }
+
   /* dashboard parity: KPI deltas, gran toggle, loss bars, forecast-vs-plan */
   .kpi-d { display:block; margin-top:6px; font-size:11px; font-weight:600; line-height:1.2; }
   .kpi-d.up { color:#16a34a; } .kpi-d.down { color:#dc2626; } .kpi-d.flat { color:var(--ink-4); }
@@ -3646,6 +3662,38 @@ function ebConfig(){ return { type:'emailbison', enabled:!!EB_CONFIG.enabled, ba
 function applyEb(cfg){ if (cfg && typeof cfg === 'object'){ if (typeof cfg.enabled!=='undefined') EB_CONFIG.enabled=!!cfg.enabled; if (typeof cfg.baseUrl!=='undefined') EB_CONFIG.baseUrl=cfg.baseUrl||''; if (typeof cfg.campaignId!=='undefined') EB_CONFIG.campaignId=String(cfg.campaignId||''); if (typeof cfg.campaignName!=='undefined') EB_CONFIG.campaignName=cfg.campaignName||''; if (cfg.dailyCap!=null && cfg.dailyCap!=='') EB_CONFIG.dailyCap=Number(cfg.dailyCap)||50; } }
 function saveEb(){ saveJSON(EMAILBISON_KEY, ebConfig()); if (cloudOn()) sbUpsert('settings', 'emailbison', ebConfig()).catch(e => console.warn('emailbison sync failed', e)); }
 
+// Objections & FAQs playbook — seeded from real Fathom sales calls. Editable + cloud-synced.
+const OBJECTIONS_KEY = 'gl_objections_v1';
+const DEFAULT_OBJECTIONS = {
+  objections: [
+    { cat:'Competitor', q:'Helmet Tracker is cheaper and integrates with Noxy for helmet reconditioning history.', a:'That Noxy integration is slick — if helmets are the only thing you care about. But Helmet Tracker is helmet-only software. Your AD told you they want this across every program: GearLocker tracks uniforms, tech, and all your equipment in one place, with parent replacement-cost notices and the ROI guarantee. We keep full item history today and helmet recertification is on our roadmap. If you buy helmet-only now, you’re buying a second system next year for everything else. (Rep tip: get the AD in the room early — a football-only contact undervalues whole-department features.)' },
+    { cat:'Price', q:'The price is higher than other options / it’s too expensive.', a:'The real question isn’t the sticker price — it’s how much gear walks out the door every year. Most ADs find it’s far more than the software. That’s why we put it in writing: our ROI guarantee refunds the difference if you don’t recover the cost in saved gear the first year. What did you spend last year replacing gear you already owned?' },
+    { cat:'Budget / Timing', q:'Money’s tight / it’s not in this year’s budget / revisit next cycle.', a:'Two things. First, most schools start with a single program’s account — football usually — or sell sponsor ad space in the parent notifications to cover it, so it doesn’t need new district money. Second, every season you wait you’re re-buying gear that just went missing. If the timing really is next cycle, let’s lock the exact budget-planning date now and I’ll keep you posted as nearby schools come on.' },
+    { cat:'Status quo', q:'We just use a spreadsheet / pen and paper and it’s been fine.', a:'Spreadsheets work right up until the end of the season when you can’t find half your gear or two kids claim the same jersey. The difference: coaches check gear in and out from their phone, parents get an automatic notice with the replacement cost, and you see every program in one place. When something goes missing today — how do you track who had it?' },
+    { cat:'Onboarding', q:'Setting this up sounds like a ton of work / no time mid-season.', a:'We do the heavy lifting — send your inventory in any format, even handwritten notes or an old spreadsheet, and we upload it for you. Setup runs about 30 days and the only real bottleneck is gathering what you already have. Start with one program — football — and add the rest over the summer.' },
+    { cat:'Integration', q:'We need it to sync with our SIS (PowerSchool / Blackbaud / Aeries) and that needs IT approval.', a:'SIS sync is an optional $500/yr add-on that auto-syncs your rosters — but you don’t need it to start. We launch with a roster upload now and flip the integration on once IT signs off, so the approval process never blocks your go-live. (Rep tip: get the tech decision-maker in early — these stall on access, not interest.)' },
+    { cat:'Product', q:'Do we need special scanners or hardware?', a:'No hardware required. It’s phone-first — coaches scan QR codes and check gear in and out from the phone in their pocket. A heat press for the QR labels is the only optional add-on.' },
+    { cat:'Product fit', q:'We check out kits of gear to coaches, not individual items to students.', a:'We can handle that — track each kit as a bundled item assigned to the coach instead of a student. If your need is purely kit logistics at scale, let’s talk through the workflow so I set the right expectation, but most programs map cleanly.' },
+    { cat:'Procurement', q:'To pay you, we need you set up as an approved vendor / you need a state business certificate.', a:'We do vendor onboarding all the time — send your vendor packet and we’ll handle the W-9, certificate of insurance, and any state business registration so procurement isn’t the thing that blocks you.' },
+    { cat:'Decision process', q:'I need to get the AD / principal / superintendent / board to approve.', a:'Let’s make that easy. I’ll get you a one-page proposal with the ROI guarantee in writing you can forward, and I’m happy to jump on a quick call with your AD or business office so you’re not the one fielding the technical questions.' },
+  ],
+  faqs: [
+    { q:'What does it cost?', a:'Base $2,400/yr (about $299/mo for high schools, $249/mo for middle schools, billed annually) plus a one-time $1,000 onboarding fee. Smaller athletics-only programs (~250 students) run about $1,800/yr. Conference attendees get 10% off. Optional SIS integration is $500/yr.' },
+    { q:'Is there an ROI guarantee?', a:'Yes — if your first-year recovered and saved gear doesn’t exceed the software cost, we refund the difference.' },
+    { q:'Do we need any hardware?', a:'No. It’s phone-first with QR codes. The only optional add-on is a heat press for printing labels.' },
+    { q:'How long does onboarding take?', a:'About 30 days. We upload your existing inventory in any format; the main bottleneck is you gathering what you already have.' },
+    { q:'Does it integrate with our SIS?', a:'Yes — PowerSchool, Blackbaud, Aeries and others via an optional $500/yr add-on. It’s not required to start.' },
+    { q:'How do parents get involved?', a:'They get automatic notifications with the replacement cost when gear isn’t returned — which is what drives gear back and recovers money.' },
+    { q:'How can we fund it?', a:'Common paths: a program or football account, booster funds, or selling sponsor ad space inside the parent notifications.' },
+    { q:'Can it track non-athletic items?', a:'Yes — laptops, band instruments, iPads, any asset, all via QR codes.' },
+    { q:'What about helmet reconditioning?', a:'We keep full item history today, and deeper helmet-recertification integration is on the roadmap.' },
+  ],
+};
+let OBJECTIONS_PB = JSON.parse(JSON.stringify(DEFAULT_OBJECTIONS));
+function objectionsConfig(){ return { type:'objections', objections: OBJECTIONS_PB.objections, faqs: OBJECTIONS_PB.faqs }; }
+function applyObjections(cfg){ if (cfg && typeof cfg==='object'){ if (Array.isArray(cfg.objections)) OBJECTIONS_PB.objections = cfg.objections; if (Array.isArray(cfg.faqs)) OBJECTIONS_PB.faqs = cfg.faqs; } }
+function saveObjectionsPB(){ saveJSON(OBJECTIONS_KEY, objectionsConfig()); if (cloudOn()) sbUpsert('settings', 'objections', objectionsConfig()).catch(e => console.warn('objections sync failed', e)); }
+
 const PROSPECTS_KEY = 'gl_prospects_v1';
 let PROSPECTS = [];
 function prospectsConfig(){ return { type:'prospects', list: PROSPECTS.slice(0, 500) }; }
@@ -3851,6 +3899,7 @@ applySources(loadJSON(SOURCES_KEY, null));          // restore lead sources (clo
 if (ensureAutoSources()) saveJSON(SOURCES_KEY, sourcesConfig());   // guarantee EmailBison + Proximity outreach exist
 applyEb(loadJSON(EMAILBISON_KEY, null));             // restore EmailBison config (cloud copy loads in refreshFromCloud)
 applyProspects(loadJSON(PROSPECTS_KEY, null));       // restore prospect queue (cloud copy loads in refreshFromCloud)
+applyObjections(loadJSON(OBJECTIONS_KEY, null));     // restore objections/FAQ playbook (cloud copy loads in refreshFromCloud)
 applyLossReasons(loadJSON(LOSS_REASONS_KEY, null)); // restore loss reasons
 applyGoals(loadJSON(GOALS_KEY, null));               // restore monthly goals
 function getDecks(){ return DB.decks; }
@@ -3973,6 +4022,8 @@ async function refreshFromCloud(){
   if (eb){ applyEb(eb); saveJSON(EMAILBISON_KEY, ebConfig()); }
   const prospects = (settings || []).find(s => s && s.type === 'prospects');
   if (prospects){ applyProspects(prospects); saveJSON(PROSPECTS_KEY, prospectsConfig()); }
+  const objs = (settings || []).find(s => s && s.type === 'objections');
+  if (objs){ applyObjections(objs); saveJSON(OBJECTIONS_KEY, objectionsConfig()); }
   return { blocked: false };
 }
 const uid = (p) => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
@@ -4536,7 +4587,7 @@ function renderSettingsTabs(){
   const tabs = document.getElementById('settings-tabs');
   if (!tabs) return;
   tabs.innerHTML = '';
-  [['pricing','Pricing'],['goals','Goals'],['sources','Lead sources'],['lossreasons','Loss reasons'],['team','Team'],['rubric','Call rubric'],['automation','Automation'],['playbooks','Playbooks'],['sequences','Sequences'],['emailbison','EmailBison'],['fathom','Fathom'],['google','Google sync']].forEach(([key,label]) => {
+  [['pricing','Pricing'],['goals','Goals'],['sources','Lead sources'],['lossreasons','Loss reasons'],['objections','Objections & FAQs'],['team','Team'],['rubric','Call rubric'],['automation','Automation'],['playbooks','Playbooks'],['sequences','Sequences'],['emailbison','EmailBison'],['fathom','Fathom'],['google','Google sync']].forEach(([key,label]) => {
     tabs.appendChild(el('button',{ class:'settings-tab' + (settingsTab===key?' active':''), type:'button', onClick:()=>{ settingsTab = key; renderSettingsPage(); window.scrollTo(0,0); } }, label));
   });
 }
@@ -4554,6 +4605,7 @@ function renderSettingsPage(){
   else if (settingsTab === 'goals') body.appendChild(renderGoalsSettings());
   else if (settingsTab === 'emailbison') body.appendChild(renderEmailBisonSettings());
   else if (settingsTab === 'fathom') body.appendChild(renderFathomSettings());
+  else if (settingsTab === 'objections') body.appendChild(renderObjectionPlaybook());
   else if (settingsTab === 'google') body.appendChild(renderGoogleSettings());
   else {
     body.appendChild(el('p',{class:'settings-subtitle'}, 'Update pricing here and it flows into every deck’s pricing slide and proposal. Saved for the whole team.'));
@@ -4622,6 +4674,59 @@ function renderEmailBisonSettings(){
   });
   card.appendChild(el('div',{class:'eb-row'}, saveBtn, saveNote));
   wrap.appendChild(card);
+  return wrap;
+}
+function renderObjectionPlaybook(){
+  const wrap = el('div',{});
+  wrap.appendChild(el('p',{class:'settings-subtitle'}, 'The objections your reps actually hear and the best way to answer them — seeded from your recorded sales calls. Edit anything; reps can pull this up mid-call. Saved for the whole team.'));
+  const search = el('input',{type:'text', class:'obj-search', placeholder:'Search objections & FAQs…'});
+  wrap.appendChild(search);
+
+  const objWrap = el('div',{class:'obj-list'});
+  const faqWrap = el('div',{class:'obj-list'});
+  const objRefs = [], faqRefs = [];
+
+  function objCard(o){
+    const catI = el('input',{type:'text', class:'obj-cat-in', value:o.cat||'', placeholder:'Category'});
+    const qI = el('textarea',{class:'obj-q-in', rows:'2'}, o.q||'');
+    const aI = el('textarea',{class:'obj-a-in', rows:'4'}, o.a||'');
+    const card = el('div',{class:'obj-card'},
+      el('div',{class:'obj-card-top'}, catI, el('button',{class:'obj-del', type:'button', title:'Delete', onClick:()=>{ const i=objRefs.indexOf(ref); if(i>=0) objRefs.splice(i,1); card.remove(); }}, '✕')),
+      el('label',{class:'obj-lbl'}, 'Objection'), qI,
+      el('label',{class:'obj-lbl'}, 'Best response'), aI);
+    const ref = { catI, qI, aI, card, text:()=> (o.cat+' '+o.q+' '+o.a).toLowerCase() };
+    objRefs.push(ref); return card;
+  }
+  function faqCard(f){
+    const qI = el('textarea',{class:'obj-q-in', rows:'2'}, f.q||'');
+    const aI = el('textarea',{class:'obj-a-in', rows:'4'}, f.a||'');
+    const card = el('div',{class:'obj-card'},
+      el('div',{class:'obj-card-top'}, el('span',{class:'obj-cat-chip'},'FAQ'), el('button',{class:'obj-del', type:'button', title:'Delete', onClick:()=>{ const i=faqRefs.indexOf(ref); if(i>=0) faqRefs.splice(i,1); card.remove(); }}, '✕')),
+      el('label',{class:'obj-lbl'}, 'Question'), qI,
+      el('label',{class:'obj-lbl'}, 'Answer'), aI);
+    const ref = { qI, aI, card, text:()=> (f.q+' '+f.a).toLowerCase() };
+    faqRefs.push(ref); return card;
+  }
+  (OBJECTIONS_PB.objections||[]).forEach(o => objWrap.appendChild(objCard(o)));
+  (OBJECTIONS_PB.faqs||[]).forEach(f => faqWrap.appendChild(faqCard(f)));
+
+  search.addEventListener('input', ()=>{ const q=search.value.toLowerCase().trim();
+    objRefs.forEach(r => r.card.style.display = (!q || r.text().indexOf(q)>=0) ? '' : 'none');
+    faqRefs.forEach(r => r.card.style.display = (!q || r.text().indexOf(q)>=0) ? '' : 'none');
+  });
+
+  wrap.appendChild(el('div',{class:'obj-sec-h'}, 'Objection handling', el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ objWrap.appendChild(objCard({cat:'',q:'',a:''})); }}, '+ Add objection')));
+  wrap.appendChild(objWrap);
+  wrap.appendChild(el('div',{class:'obj-sec-h'}, 'FAQs', el('button',{class:'btn ghost sm', type:'button', onClick:()=>{ faqWrap.appendChild(faqCard({q:'',a:''})); }}, '+ Add FAQ')));
+  wrap.appendChild(faqWrap);
+
+  const saveNote = el('span',{class:'eb-load-note'}, '');
+  const saveBtn = el('button',{class:'btn primary', type:'button', onClick:()=>{
+    OBJECTIONS_PB.objections = objRefs.filter(r=>document.body.contains(r.card)).map(r=>({ cat:r.catI.value.trim(), q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(o=>o.q||o.a);
+    OBJECTIONS_PB.faqs = faqRefs.filter(r=>document.body.contains(r.card)).map(r=>({ q:r.qI.value.trim(), a:r.aI.value.trim() })).filter(f=>f.q||f.a);
+    saveObjectionsPB(); saveNote.textContent='Saved for the team.'; setTimeout(()=>{ saveNote.textContent=''; }, 2500);
+  }}, 'Save playbook');
+  wrap.appendChild(el('div',{class:'obj-save-row'}, saveBtn, saveNote));
   return wrap;
 }
 function renderFathomSettings(){
