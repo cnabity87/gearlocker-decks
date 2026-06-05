@@ -3125,42 +3125,9 @@
     </div>
   </div>
 
-  <!-- Dashboard (deck manager) — rendered by JS into #dash-main -->
-  <div class="dash" id="dashboard">
-    <div class="dash-top">
-      <div class="dash-brand">
-        <span class="brand-mark" id="brand-mark-intro"></span>
-        <span class="dash-brand-sub">Presentations</span>
-      </div>
-      <div class="dash-actions">
-        <button class="user-chip" id="user-chip" type="button" style="display:none"></button>
-        <button class="btn ghost" id="pipeline-btn" type="button" title="Deals by stage">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="21"/><line x1="12" y1="3" x2="12" y2="13"/><line x1="18" y1="3" x2="18" y2="17"/></svg>
-          Pipeline
-        </button>
-        <button class="btn ghost" id="today-btn" type="button" title="What needs attention today">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <span id="today-label">Today</span>
-          <span class="hdr-count" id="today-count" style="display:none"></span>
-        </button>
-        <button class="btn ghost" id="followups-btn" type="button" title="Check booked follow-ups on the rep's calendar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
-          <span class="fu-btn-label">Follow-ups</span>
-        </button>
-        <button class="btn ghost" id="leaderboard-btn" type="button" title="Team performance">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11V3H8v6H2v12h20V11z"/></svg>
-          Performance
-        </button>
-        <button class="btn ghost" id="settings-btn" type="button" title="Pricing, rubric &amp; team">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
-        </button>
-        <button class="btn primary" id="new-deck-btn" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New deck
-        </button>
-      </div>
-    </div>
+  <!-- Dashboard (Leads) — starts hidden; boot lands on Today and the JS builds the real top nav. -->
+  <div class="dash is-hidden" id="dashboard" style="display:none">
+    <div class="dash-top"></div>
     <div class="dash-main">
       <h1 class="dash-h">Leads</h1>
       <p class="dash-sub">Every school you’re working. Open a lead to see its timeline, build the presentation, and move the deal forward.</p>
