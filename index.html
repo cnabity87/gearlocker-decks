@@ -2120,6 +2120,17 @@
   .rs-cyc-row { display:flex; align-items:center; justify-content:space-between; border:1px solid var(--border); border-radius:9px; padding:9px 13px; }
   .rs-cyc-l { font-size:13.5px; color:var(--ink-2); }
   .rs-cyc-v { font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums; }
+  /* demos-this-week list */
+  .rs-demos { display:flex; flex-direction:column; gap:9px; margin-top:6px; }
+  .rs-demo-row { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; border:1px solid var(--border); border-radius:11px; padding:12px 16px; }
+  .rs-demo-main { min-width:0; flex:1; }
+  .rs-demo-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .rs-demo-school { font-size:15px; font-weight:700; color:var(--ink); }
+  .rs-demo-rep { font-size:12px; color:var(--ink-4); }
+  .rs-demo-desc { font-size:12.5px; color:var(--ink-3); line-height:1.45; margin-top:4px; }
+  .rs-demo-side { flex-shrink:0; text-align:right; }
+  .rs-demo-amt { font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .rs-demo-stage { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-4); }
 
   /* 8-week trend mini bar charts */
   .tb-grid { display:grid; grid-template-columns:1fr 1fr; gap:26px 38px; }
@@ -8725,6 +8736,11 @@ function weeklyReportData(offset){
   const topRep = active.find(r => (r.wonAmt>0 || r.wonCount>0 || r.demos>0 || r.leads>0)) || null;
   const behindReps = active.filter(r => (r.leads + r.demos + r.wonCount) === 0);
 
+  // --- Demos this week (with a short account description) ---
+  const demoList = decks.filter(d => inRange(demoDate(d), cur))
+    .sort((a,b)=>dealAmount(b)-dealAmount(a))
+    .map(d => ({ school:d.school, rep: repNameOf(team, d), amt: dealAmount(d), stage: stageMeta(dealStage(d)).short, desc: accountDesc(d) }));
+
   // --- Wins / losses (this week) ---
   const wins = wk.won.slice().sort((a,b)=>dealAmount(b)-dealAmount(a)).map(d => ({ school:d.school, amt:dealAmount(d), rep: repNameOf(team, d) }));
   const losses = wk.lost.map(d => ({ school:d.school, rep: repNameOf(team, d), reason: d.lostReason || d.lossReason || '' }));
@@ -8829,7 +8845,7 @@ function weeklyReportData(offset){
 
   return { offset:offset||0, cur, prev, wk, pw, goals, mtd, overall, daysElapsed, daysInMonth, monthStart,
            byStage, openValue, weighted, openCount: open.length, funnel, avgCycle, cycleLeadVerbal, cycleVerbalWon,
-           reps, topRep, behindReps, wins, losses, atRisk, upcoming, closingSoon, team, totalDecks: decks.length,
+           reps, topRep, behindReps, wins, losses, demoList, atRisk, upcoming, closingSoon, team, totalDecks: decks.length,
            trends, plan, bySource, bySize, quietOpen, atRiskTotal, agingBuckets, dataHealth, focus, lossReasons,
            winLoss: computeWinLoss(decks, null, id=>(team.find(p=>p.id===id)||{}).name||'Unassigned') };
 }
@@ -8962,6 +8978,19 @@ function rsFunnel(stages){
   return el('div',{class:'rs-funnel'}, ...nodes);
 }
 function cycleRow(label, days){ return el('div',{class:'rs-cyc-row'}, el('span',{class:'rs-cyc-l'}, label), el('b',{class:'rs-cyc-v'}, days!=null ? (days + 'd') : '—')); }
+// A short one-line account description for the demo list — prefers the AI research summary,
+// else composes from size / sports / state / source.
+function accountDesc(d){
+  const r = d.research || {};
+  if (r.summary) return String(r.summary).replace(/\s+/g,' ').trim().slice(0, 200);
+  const bits = [];
+  if (d.enrollment && Number(d.enrollment) > 0) bits.push(fmtNum(d.enrollment) + ' students');
+  else if (d.teamCount && Number(d.teamCount) > 0) bits.push(fmtNum(d.teamCount) + ' teams');
+  if (Array.isArray(d.sports) && d.sports.length) bits.push(d.sports.slice(0,3).join(', ') + (d.sports.length>3?(' +'+(d.sports.length-3)):''));
+  if (typeof deckState==='function' && deckState(d)) bits.push(deckState(d));
+  if (d.leadSource) bits.push(d.leadSource);
+  return bits.join('  ·  ') || 'No account details captured yet.';
+}
 
 function buildReportSlides(data){
   const slides = [];
@@ -8988,6 +9017,24 @@ function buildReportSlides(data){
         { label:'Won',            n:data.wk.wonCount, amt:data.wk.wonAmt }
       ]),
       el('div',{class:'rs-cover-foot'}, dataNote(data.dataHealth)))
+  ));
+
+  // ----- Slide 2: Demos this week (account list) -----
+  const DEMO_CAP = 8;
+  const demoShown = data.demoList.slice(0, DEMO_CAP);
+  slides.push(rsSlide({ eyebrow:'Demos', title:'Demos this week' },
+    el('p',{class:'rs-sub'}, data.demoList.length
+      ? (plur(data.demoList.length, 'demo') + ' completed the week of ' + weekLabel(data.cur) + ' · ' + fmtMoneyK(data.wk.demosAmt) + ' in pipeline.')
+      : 'No demos were marked completed this week.'),
+    data.demoList.length
+      ? el('div',{class:'rs-demos'}, ...demoShown.map(dm => el('div',{class:'rs-demo-row'},
+          el('div',{class:'rs-demo-main'},
+            el('div',{class:'rs-demo-head'}, el('span',{class:'rs-demo-school'}, dm.school), el('span',{class:'rs-demo-rep'}, dm.rep)),
+            el('div',{class:'rs-demo-desc'}, dm.desc)),
+          el('div',{class:'rs-demo-side'}, el('div',{class:'rs-demo-amt'}, fmtMoneyK(dm.amt)), el('span',{class:'rs-demo-stage'}, dm.stage))))
+        )
+      : el('div',{class:'rs-empty'}, 'Demos show here once a deal is moved to the “Demo Completed” stage — each with a short account summary.'),
+    (data.demoList.length > DEMO_CAP) ? el('div',{class:'rs-foot'}, '+ ' + (data.demoList.length - DEMO_CAP) + ' more not shown.') : null
   ));
 
   // ----- Slide 1.5: AI "story this week" (only if generated) -----
