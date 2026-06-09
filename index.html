@@ -9019,24 +9019,6 @@ function buildReportSlides(data){
       el('div',{class:'rs-cover-foot'}, dataNote(data.dataHealth)))
   ));
 
-  // ----- Slide 2: Demos this week (account list) -----
-  const DEMO_CAP = 8;
-  const demoShown = data.demoList.slice(0, DEMO_CAP);
-  slides.push(rsSlide({ eyebrow:'Demos', title:'Demos this week' },
-    el('p',{class:'rs-sub'}, data.demoList.length
-      ? (plur(data.demoList.length, 'demo') + ' completed the week of ' + weekLabel(data.cur) + ' · ' + fmtMoneyK(data.wk.demosAmt) + ' in pipeline.')
-      : 'No demos were marked completed this week.'),
-    data.demoList.length
-      ? el('div',{class:'rs-demos'}, ...demoShown.map(dm => el('div',{class:'rs-demo-row'},
-          el('div',{class:'rs-demo-main'},
-            el('div',{class:'rs-demo-head'}, el('span',{class:'rs-demo-school'}, dm.school), el('span',{class:'rs-demo-rep'}, dm.rep)),
-            el('div',{class:'rs-demo-desc'}, dm.desc)),
-          el('div',{class:'rs-demo-side'}, el('div',{class:'rs-demo-amt'}, fmtMoneyK(dm.amt)), el('span',{class:'rs-demo-stage'}, dm.stage))))
-        )
-      : el('div',{class:'rs-empty'}, 'Demos show here once a deal is moved to the “Demo Completed” stage — each with a short account summary.'),
-    (data.demoList.length > DEMO_CAP) ? el('div',{class:'rs-foot'}, '+ ' + (data.demoList.length - DEMO_CAP) + ' more not shown.') : null
-  ));
-
   // ----- Slide 1.5: AI "story this week" (only if generated) -----
   if (data.aiSummary && (data.aiSummary.headline || (data.aiSummary.insights||[]).length)){
     const ai = data.aiSummary;
@@ -9069,7 +9051,25 @@ function buildReportSlides(data){
       kpiCard('Verbal commits', String(data.wk.commits), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.commitsAmt) + ' committed')))
   ));
 
-  // ----- Slide 3: 8-week trend (built above) -----
+  // ----- Slide 3: Demos this week (account list) -----
+  const DEMO_CAP = 8;
+  const demoShown = data.demoList.slice(0, DEMO_CAP);
+  slides.push(rsSlide({ eyebrow:'Demos', title:'Demos this week' },
+    el('p',{class:'rs-sub'}, data.demoList.length
+      ? (plur(data.demoList.length, 'demo') + ' completed the week of ' + weekLabel(data.cur) + ' · ' + fmtMoneyK(data.wk.demosAmt) + ' in pipeline.')
+      : 'No demos were marked completed this week.'),
+    data.demoList.length
+      ? el('div',{class:'rs-demos'}, ...demoShown.map(dm => el('div',{class:'rs-demo-row'},
+          el('div',{class:'rs-demo-main'},
+            el('div',{class:'rs-demo-head'}, el('span',{class:'rs-demo-school'}, dm.school), el('span',{class:'rs-demo-rep'}, dm.rep)),
+            el('div',{class:'rs-demo-desc'}, dm.desc)),
+          el('div',{class:'rs-demo-side'}, el('div',{class:'rs-demo-amt'}, fmtMoneyK(dm.amt)), el('span',{class:'rs-demo-stage'}, dm.stage))))
+        )
+      : el('div',{class:'rs-empty'}, 'Demos show here once a deal is moved to the “Demo Completed” stage — each with a short account summary.'),
+    (data.demoList.length > DEMO_CAP) ? el('div',{class:'rs-foot'}, '+ ' + (data.demoList.length - DEMO_CAP) + ' more not shown.') : null
+  ));
+
+  // ----- Slide 4: 8-week trend (built above) -----
   slides.push(trendSlide);
 
   // ----- Slide 4: Goal pacing -----
