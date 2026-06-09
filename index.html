@@ -2105,8 +2105,21 @@
 
   /* cover: focus line + data-quality footnote */
   .rs-cover-focus { margin-top:18px; font-size:15px; line-height:1.5; color:#ffd9d2; background:rgba(238,54,47,.16); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:11px 16px; max-width:1040px; }
-  .rs-cover-bottom { display:flex; flex-direction:column; gap:16px; }
+  .rs-cover-bottom { display:flex; flex-direction:column; gap:14px; }
   .rs-cover-foot { font-size:12px; color:rgba(255,255,255,.45); }
+  /* cover funnel (leads → demos → verbal commits → won) */
+  .rs-cover-fnl-label { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.55); border-top:1px solid rgba(255,255,255,.16); padding-top:20px; }
+  .rs-funnel { display:flex; align-items:stretch; gap:10px; }
+  .rs-fn-step { flex:1; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:16px 12px; text-align:center; }
+  .rs-fn-n { font-size:34px; font-weight:700; letter-spacing:-.03em; color:#fff; line-height:1; }
+  .rs-fn-l { font-size:11.5px; color:rgba(255,255,255,.6); margin-top:7px; text-transform:uppercase; letter-spacing:.04em; }
+  .rs-fn-amt { font-size:14px; font-weight:600; color:#ffb3aa; margin-top:8px; }
+  .rs-fn-arrow { display:flex; align-items:center; color:rgba(255,255,255,.35); font-size:30px; font-weight:300; }
+  /* sales-cycle list (funnel & velocity slide) */
+  .rs-cycle { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .rs-cyc-row { display:flex; align-items:center; justify-content:space-between; border:1px solid var(--border); border-radius:9px; padding:9px 13px; }
+  .rs-cyc-l { font-size:13.5px; color:var(--ink-2); }
+  .rs-cyc-v { font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums; }
 
   /* 8-week trend mini bar charts */
   .tb-grid { display:grid; grid-template-columns:1fr 1fr; gap:26px 38px; }
@@ -8610,10 +8623,14 @@ function weeklyReportData(offset){
     const won = decks.filter(d => inRange(closedWonDate(d), r));
     const lost = decks.filter(d => inRange(lostDate(d), r));
     const created = decks.filter(d => inRange(d.createdAt, r));
+    const demoed = decks.filter(d => inRange(demoDate(d), r));
+    const committed = decks.filter(d => inRange(committedDate(d), r));
     const m = {
       leads: created.length,
-      demos: decks.filter(d => inRange(demoDate(d), r)).length,
-      commits: decks.filter(d => inRange(committedDate(d), r)).length,
+      demos: demoed.length,
+      demosAmt: demoed.reduce((a,d)=>a+dealAmount(d),0),
+      commits: committed.length,
+      commitsAmt: committed.reduce((a,d)=>a+dealAmount(d),0),
       wonCount: won.length,
       wonAmt: won.reduce((a,d)=>a+dealAmount(d),0),
       lostCount: lost.length,
@@ -8676,9 +8693,12 @@ function weeklyReportData(offset){
     won: decks.filter(d => dealStage(d)==='closedwon').length
   };
 
-  // --- Velocity (avg days lead→won) ---
+  // --- Velocity (avg days between stages) ---
+  const avgOf = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null;
   const cycles = decks.filter(d => closedWonDate(d) && d.createdAt).map(d => dayDiff(closedWonDate(d), d.createdAt)).filter(x=>x>=0);
-  const avgCycle = cycles.length ? Math.round(cycles.reduce((a,b)=>a+b,0)/cycles.length) : null;
+  const avgCycle = avgOf(cycles);                                                                                  // lead → won
+  const cycleLeadVerbal = avgOf(decks.filter(d => committedDate(d) && d.createdAt).map(d => dayDiff(committedDate(d), d.createdAt)).filter(x=>x>=0));   // lead → verbal commit
+  const cycleVerbalWon = avgOf(decks.filter(d => closedWonDate(d) && committedDate(d)).map(d => dayDiff(closedWonDate(d), committedDate(d))).filter(x=>x>=0)); // verbal commit → won
 
   // --- Rep scoreboard ---
   const groups = team.map(p => ({ id:p.id, name:p.name, decks: decks.filter(d=>d.salespersonId===p.id) }));
@@ -8738,11 +8758,15 @@ function weeklyReportData(offset){
   for (let k = TREND_N - 1; k >= 0; k--){
     const r = reportWeekRange((offset||0) + k);
     const wonW = decks.filter(d => inRange(closedWonDate(d), r));
+    const demoW = decks.filter(d => inRange(demoDate(d), r));
+    const commitW = decks.filter(d => inRange(committedDate(d), r));
     trends.push({
       label: fmtDayShort(r.start),
       leads: decks.filter(d => inRange(d.createdAt, r)).length,
-      demos: decks.filter(d => inRange(demoDate(d), r)).length,
-      commits: decks.filter(d => inRange(committedDate(d), r)).length,
+      demos: demoW.length,
+      demosAmt: demoW.reduce((a,d)=>a+dealAmount(d),0),
+      commits: commitW.length,
+      commitsAmt: commitW.reduce((a,d)=>a+dealAmount(d),0),
       wonAmt: wonW.reduce((a,d)=>a+dealAmount(d),0),
       wonCount: wonW.length,
       pipe: decks.filter(d => inRange(d.createdAt, r)).reduce((a,d)=>a+dealAmount(d),0)
@@ -8804,7 +8828,7 @@ function weeklyReportData(offset){
   const focus = focusParts.length ? ('Focus: ' + focusParts.join('; ') + '.') : 'Clean week — keep the top of funnel full and push commits to close.';
 
   return { offset:offset||0, cur, prev, wk, pw, goals, mtd, overall, daysElapsed, daysInMonth, monthStart,
-           byStage, openValue, weighted, openCount: open.length, funnel, avgCycle,
+           byStage, openValue, weighted, openCount: open.length, funnel, avgCycle, cycleLeadVerbal, cycleVerbalWon,
            reps, topRep, behindReps, wins, losses, atRisk, upcoming, closingSoon, team, totalDecks: decks.length,
            trends, plan, bySource, bySize, quietOpen, atRiskTotal, agingBuckets, dataHealth, focus, lossReasons,
            winLoss: computeWinLoss(decks, null, id=>(team.find(p=>p.id===id)||{}).name||'Unassigned') };
@@ -8925,6 +8949,20 @@ function dataNote(dh){
                        : ('Data quality: all ' + dh.total + ' deals are assigned to a rep and have a deal value.');
 }
 
+// Horizontal funnel for the cover: stages = [{label, n, amt}] with → between.
+function rsFunnel(stages){
+  const nodes = [];
+  stages.forEach((s, i) => {
+    nodes.push(el('div',{class:'rs-fn-step'},
+      el('div',{class:'rs-fn-n'}, String(s.n)),
+      el('div',{class:'rs-fn-l'}, s.label),
+      (s.amt != null ? el('div',{class:'rs-fn-amt'}, fmtMoneyK(s.amt)) : null)));
+    if (i < stages.length - 1) nodes.push(el('div',{class:'rs-fn-arrow'}, '›'));
+  });
+  return el('div',{class:'rs-funnel'}, ...nodes);
+}
+function cycleRow(label, days){ return el('div',{class:'rs-cyc-row'}, el('span',{class:'rs-cyc-l'}, label), el('b',{class:'rs-cyc-v'}, days!=null ? (days + 'd') : '—')); }
+
 function buildReportSlides(data){
   const slides = [];
   const statusMap = { on:{t:'ON TRACK', c:'on'}, watch:{t:'WATCH', c:'watch'}, off:{t:'OFF TRACK', c:'off'}, none:{t:'NO GOALS SET', c:'none'} };
@@ -8942,11 +8980,13 @@ function buildReportSlides(data){
         el('span',{class:'rs-cover-narr'}, reportNarrative(data))),
       el('div',{class:'rs-cover-focus'}, data.focus)),
     el('div',{class:'rs-cover-bottom'},
-      el('div',{class:'rs-cover-stats'},
-        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, fmtMoneyK(data.wk.wonAmt)), el('div',{class:'rs-cstat-l'}, 'Revenue won')),
-        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, String(data.wk.wonCount)), el('div',{class:'rs-cstat-l'}, 'Deals won')),
-        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, String(data.wk.leads)), el('div',{class:'rs-cstat-l'}, 'New leads')),
-        el('div',{class:'rs-cstat'}, el('div',{class:'rs-cstat-v'}, fmtMoneyK(data.weighted)), el('div',{class:'rs-cstat-l'}, 'Weighted pipeline'))),
+      el('div',{class:'rs-cover-fnl-label'}, 'This week’s funnel'),
+      rsFunnel([
+        { label:'New leads',      n:data.wk.leads,    amt:data.wk.pipeCreated },
+        { label:'Demos',          n:data.wk.demos,    amt:data.wk.demosAmt },
+        { label:'Verbal commits', n:data.wk.commits,  amt:data.wk.commitsAmt },
+        { label:'Won',            n:data.wk.wonCount, amt:data.wk.wonAmt }
+      ]),
       el('div',{class:'rs-cover-foot'}, dataNote(data.dataHealth)))
   ));
 
@@ -8966,7 +9006,9 @@ function buildReportSlides(data){
     el('div',{class:'tb-grid'},
       trendCard('New leads', mk('leads'), {}),
       trendCard('Demos completed', mk('demos'), {}),
+      trendCard('Demo $ (pipeline)', mk('demosAmt'), {fmt:fmtMoneyK}),
       trendCard('New verbal commits', mk('commits'), {}),
+      trendCard('Verbal commit $', mk('commitsAmt'), {fmt:fmtMoneyK}),
       trendCard('Revenue won', mk('wonAmt'), {fmt:fmtMoneyK})));
 
   // ----- Slide 2: This week at a glance -----
@@ -8976,8 +9018,8 @@ function buildReportSlides(data){
       kpiCard('Deals won', String(data.wk.wonCount), wowDelta(data.wk.wonCount, data.pw.wonCount)),
       kpiCard('Pipeline created', fmtMoneyK(data.wk.pipeCreated), wowDelta(data.wk.pipeCreated, data.pw.pipeCreated, {money:true})),
       kpiCard('New leads', String(data.wk.leads), wowDelta(data.wk.leads, data.pw.leads)),
-      kpiCard('Demos completed', String(data.wk.demos), wowDelta(data.wk.demos, data.pw.demos)),
-      kpiCard('Verbal commits', String(data.wk.commits), wowDelta(data.wk.commits, data.pw.commits)))
+      kpiCard('Demos completed', String(data.wk.demos), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.demosAmt) + ' in pipeline')),
+      kpiCard('Verbal commits', String(data.wk.commits), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.commitsAmt) + ' committed')))
   ));
 
   // ----- Slide 3: 8-week trend (built above) -----
@@ -9029,9 +9071,14 @@ function buildReportSlides(data){
         el('div',{class:'rs-label'}, 'This week’s movement'),
         el('div',{class:'rep-kpis two'},
           kpiCard('Won this week', String(data.wk.wonCount), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.wonAmt))),
+          kpiCard('Verbal commits', String(data.wk.commits), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.commitsAmt) + ' committed')),
           kpiCard('New deals', String(data.wk.leads), el('span',{class:'rep-delta flat'}, fmtMoneyK(data.wk.pipeCreated))),
-          kpiCard('Win rate', data.wk.winRate!=null?(data.wk.winRate+'%'):'—', el('span',{class:'rep-delta flat'}, data.wk.wonCount+'W / '+data.wk.lostCount+'L')),
-          kpiCard('Avg cycle', data.avgCycle!=null?(data.avgCycle+'d'):'—', el('span',{class:'rep-delta flat'}, 'lead → won')))))
+          kpiCard('Win rate', data.wk.winRate!=null?(data.wk.winRate+'%'):'—', el('span',{class:'rep-delta flat'}, data.wk.wonCount+'W / '+data.wk.lostCount+'L'))),
+        el('div',{class:'rs-label', style:'margin-top:16px'}, 'Average sales cycle'),
+        el('div',{class:'rs-cycle'},
+          cycleRow('Lead → verbal commit', data.cycleLeadVerbal),
+          cycleRow('Verbal commit → won', data.cycleVerbalWon),
+          cycleRow('Lead → won', data.avgCycle))))
   ));
 
   // ----- Slide 7: Segmentation — where growth comes from -----
